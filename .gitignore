@@ -1,3 +1,4 @@
 smartagent_sf.egg-info/
 __pycache__/
 *.env*
+release/
