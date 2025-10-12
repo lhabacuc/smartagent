@@ -9,7 +9,7 @@ from ..integrations import get_llm_client
 class Agent:
     """Agente inteligente com execução em 3 fases"""
     
-    def __init__(self, model: str = "groq", api_key: Optional[str] = None, info: str = ""):
+    def __init__(self, model: str = "groq", api_key: Optional[str] = None, info: str = "", enable_history: bool = False, history_limit: int = 20):
         """
         Inicializa agente
         
@@ -17,15 +17,19 @@ class Agent:
             model: Provider do LLM (groq, openai, gemini, grok, ollama, llama)
             api_key: Chave API (opcional, pode usar variável de ambiente)
             info: Instruções adicionais para o agente (contexto, comportamento, etc.)
+            enable_history (bool): Ativa/desativa histórico de interações
+            history_limit (int): Número máximo de mensagens no histórico
         """
         self.registry = ToolRegistry()
         self.llm_client = get_llm_client(model, api_key)
         self.info = info
-        
+        self.enable_history = enable_history or False
+        self.history_limit = history_limit or 5
+        self.history = []
         self.analyzer = Analyzer(self.llm_client, info=info)
         self.executor = Executor(self.registry)
-        self.responder = Responder(self.llm_client, info=info)
-    
+        self.responder = Responder(self.llm_client, self, info=info, enable_history=enable_history)
+
     def tool(self, func: Callable = None, name: str = None):
         """Decorador para registrar ferramentas"""
         def decorator(f: Callable) -> Callable:
@@ -43,31 +47,51 @@ class Agent:
         tools_desc = self.registry.get_tools_description()
         analysis = self.analyzer.analyze(user_prompt, tools_desc)
         
-        if not analysis.get('isValid', False):
-            return {
-                'final_response': f"Não consegui processar: {analysis.get('reason', 'Pedido inválido')}",
+        # Fase 2: Execução
+        if analysis.get('isValid', False):
+            execution_data = self.executor.execute(
+                analysis['tool_using_exec'],
+                analysis['data_using_util']
+            )
+        else:
+            execution_data = {
                 'executed_tools': [],
                 'used_data': {}
             }
         
-        # Fase 2: Execução
-        execution_data = self.executor.execute(
-            analysis['tool_using_exec'],
-            analysis['data_using_util']
-        )
-        
         # Fase 3: Resposta
         final_response = self.responder.respond(user_prompt, execution_data)
-        
-        return {
+        result = {
             'final_response': final_response,
             'executed_tools': execution_data['executed_tools'],
-            'used_data': analysis['data_using_util']
+            'used_data': analysis.get('data_using_util', {}),
+            'user_prompt': user_prompt,
+            'analysis': analysis,
+            'execution_data': execution_data
         }
+
+        if self.enable_history:
+            self._add_to_history(result)
+
+        return result
+    def _add_to_history(self, entry: dict):
+        self.history.append(entry)
+        if len(self.history) > self.history_limit:
+            self.history = self.history[-self.history_limit:]
+
+    def get_history(self) -> list:
+        """Retorna o histórico de interações."""
+        return self.history.copy()
+
+    def clear_history(self):
+        """Limpa o histórico de interações."""
+        self.history = []
+        
     
     def chat(self, prompt: str) -> str:
         """Atalho para obter apenas a resposta final"""
         result = self.process(prompt)
+        self._add_to_history(result)
         return result['final_response']
 
     def help(self):

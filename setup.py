@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="smartagent-sf",
-    version="0.1.1",
+    version="0.1.2",
     author="Liedson Habacuc",
     author_email="lisvaldosf@gmail.com",
     license="MIT",
