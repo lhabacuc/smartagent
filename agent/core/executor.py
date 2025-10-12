@@ -32,7 +32,7 @@ class Executor:
                     results[tool_name] = f"Erro ao executar: {str(e)}"
             else:
                 results[tool_name] = f"Ferramenta '{tool_name}' não registrada. Nenhuma ação executada."
-        print("=== Execution Results ===")
+        
         return {
             'success': True,
             'results': results,
