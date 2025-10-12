@@ -69,6 +69,8 @@ export OPENAI_API_KEY="your-key"
 export GEMINI_API_KEY="your-key"
 export XAI_API_KEY="your-key"
 export LLAMA_API_KEY="your-key"
+
+export LLM="modelo-ai"
 ```
 
 ## Arquitetura
