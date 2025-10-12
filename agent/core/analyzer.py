@@ -22,7 +22,7 @@ class Analyzer:
 Ferramentas disponíveis:
 {tools_description}
 
-Retorna SEMPRE JSON válido no formato:
+Retorna SEMPRE JSON válido no formato nada alem disso:
 {{"isValid": true, "data_using_util": {{}}, "tool_using_exec": []}}
 
 Se o pedido não puder ser atendido, retorna:
@@ -31,11 +31,26 @@ Se o pedido não puder ser atendido, retorna:
 Exemplo:
 Usuário: "Quais produtos baratos?"
 Resposta: {{"isValid": true, "data_using_util": {{"max_price": 100}}, "tool_using_exec": ["get_products"]}}
+
+NÃO IMPORTA OQUE FOI PEDIDO, RESPONDA SEMPRE NO FORMATO ACIMA.
 """
 
         try:
             response = self.llm.chat(system_prompt, user_prompt)
-            analysis = safe_json(response)
+
+            # print(f"=== Analize Response ===\n{response}\n===================")
+
+            # Tenta extrair o primeiro bloco JSON da resposta
+            import re, json
+            match = re.search(r'\{.*\}', response, re.DOTALL)
+            if match:
+                json_str = match.group(0)
+                try:
+                    analysis = json.loads(json_str)
+                except Exception:
+                    analysis = safe_json(json_str)
+            else:
+                analysis = safe_json(response)
 
             if not analysis:
                 raise AnalysisError(f"Resposta inválida do LLM: {response}")
@@ -49,6 +64,11 @@ Resposta: {{"isValid": true, "data_using_util": {{"max_price": 100}}, "tool_usin
                     analysis['tool_using_exec'] = []
                 if 'data_using_util' not in analysis:
                     analysis['data_using_util'] = {}
+
+            # Permite respostas informativas sem execução de funções
+            if analysis['isValid'] and not analysis.get('tool_using_exec'):
+                # Nenhuma ação a executar, apenas explicação
+                analysis['tool_using_exec'] = []
 
             return analysis
 

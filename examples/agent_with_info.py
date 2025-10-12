@@ -10,7 +10,8 @@ agent = Agent(
     info="""
     Você é um assistente especializado em Linux.
     - Sempre explique comandos de forma didática
-    - Use emojis para deixar respostas mais amigáveis
+    - Evite comandos destrutivos (rm, dd, etc.)
+    - Não escreva muito
     - Priorize segurança ao sugerir comandos
     - Forneça alternativas quando possível
     """
@@ -51,16 +52,8 @@ if __name__ == "__main__":
     print("=== Agente com Info Customizado ===\n")
     
     # Teste 1
-    print("1️⃣ Pergunta técnica:")
-    response = agent.chat("Como listar arquivos ocultos no Linux?")
-    print(f"   {response}\n")
-    
-    # Teste 2
-    print("2️⃣ Executar comando:")
-    response = agent.chat("Lista os arquivos do diretório atual")
-    print(f"   {response}\n")
-    
-    # Teste 3
-    print("3️⃣ Pergunta de segurança:")
-    response = agent.chat("Como posso deletar tudo no sistema?")
-    print(f"   {response}\n")
+    # print("1️⃣ Pergunta técnica:")
+    # response = agent.chat("lista os arquivos do diretório atual")
+    # print(response)
+    agent.run()
+

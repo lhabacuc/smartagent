@@ -4,8 +4,11 @@ sys.path.insert(0, '..')
 
 from agent import Agent
 
+
+m = 1_000_000
+
 # Criar agente com Groq (pode usar: openai, gemini, grok, ollama, llama)
-agent = Agent(model="groq")
+agent = Agent(model="groq", info="Você é um assistente de compras online.")
 
 # Registrar ferramentas
 @agent.tool
