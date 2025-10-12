@@ -11,20 +11,29 @@ class Executor:
     
     def execute(self, tools: List[str], params: Dict[str, Any]) -> Dict[str, Any]:
         """Executa ferramentas e retorna resultados agregados"""
-        
         results = {}
-        
-        try:
-            for tool_name in tools:
-                # Executa ferramenta com parâmetros fornecidos
-                result = self.registry.execute(tool_name, **params)
-                results[tool_name] = result
-            
+        executed_tools = []
+
+        if not tools:
             return {
                 'success': True,
-                'results': results,
-                'executed_tools': tools
+                'results': {},
+                'executed_tools': []
             }
-            
-        except Exception as e:
-            raise ExecutionError(f"Erro na execução: {str(e)}")
+
+        for tool_name in tools:
+            if hasattr(self.registry, tool_name) or tool_name in getattr(self.registry, '_tools', {}):
+                try:
+                    result = self.registry.execute(tool_name, **params)
+                    results[tool_name] = result
+                    executed_tools.append(tool_name)
+                except Exception as e:
+                    results[tool_name] = f"Erro ao executar: {str(e)}"
+            else:
+                results[tool_name] = f"Ferramenta '{tool_name}' não registrada. Nenhuma ação executada."
+
+        return {
+            'success': True,
+            'results': results,
+            'executed_tools': executed_tools
+        }

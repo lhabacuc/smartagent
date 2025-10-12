@@ -33,6 +33,10 @@ Usuário: "Quais produtos baratos?"
 Resposta: {{"isValid": true, "data_using_util": {{"max_price": 100}}, "tool_using_exec": ["get_products"]}}
 
 NÃO IMPORTA OQUE FOI PEDIDO, RESPONDA SEMPRE NO FORMATO ACIMA.
+SE NÃO TIVER FUNÇÕES DISPONÍVEIS, RESPONDA:
+{{"isValid": false, "reason": "Nenhuma função disponível para atender o pedido"}}
+SE A FUNÇÃO NÃO ESTA DISPONÍVEL LISTADAS A CIMA, RESPONDA:
+{{"isValid": false, "reason": "Função não disponível"}}
 """
 
         try:

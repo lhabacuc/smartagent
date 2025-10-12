@@ -5,8 +5,8 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="agent",
-    version="0.1.0",
+    name="smartagent-sf",
+    version="0.1.1",
     author="Liedson Habacuc",
     author_email="lisvaldosf@gmail.com",
     license="MIT",
