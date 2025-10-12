@@ -4,12 +4,10 @@
 echo "🚀 Instalando SmartAgent..."
 echo ""
 
-# Cores para output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Verificar se Python está instalado
 if ! command -v python3 &> /dev/null; then
     echo "❌ Python 3 não encontrado. Por favor, instale Python 3.8+"
     exit 1

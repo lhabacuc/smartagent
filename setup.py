@@ -9,6 +9,7 @@ setup(
     version="0.1.0",
     author="Liedson Habacuc",
     author_email="lisvaldosf@gmail.com",
+    license="MIT",
     description="Biblioteca Python para criar agentes de IA com execução determinística",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -31,9 +32,18 @@ setup(
     ],
     extras_require={
         'dev': [
-            'pytest>=7.0.0',
-            'black>=22.0.0',
-            'flake8>=4.0.0',
+            'groq',
+            'openai',
+            'google-generativeai',
+            'ollama',
+            'llama-cpp-python',
+            'pytest',
+            'pytest-mock',
+            'black',
+            'flake8',
+            'mypy',
+            'isort',
+            'requests'
         ],
     },
 )
