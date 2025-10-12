@@ -27,4 +27,4 @@ uninstall:
 reinstall: uninstall clean install
 	@echo "Reinstalação concluída"
 
-re: clean uninstall all
+re r: clean uninstall all
