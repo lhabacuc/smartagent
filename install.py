@@ -35,15 +35,14 @@ def main():
     
     # Atualizar pip
     run_command(f"{sys.executable} -m pip install --upgrade pip", "Atualizando pip")
-    
-    # Instalar dependências
+
     run_command(f"{sys.executable} -m pip install requests", "Instalando dependências")
     
     # Instalar em modo desenvolvimento
     run_command(f"{sys.executable} -m pip install -e .", "Instalando SmartAgent")
     
     print("\n" + "=" * 60)
-    print("✨ INSTALAÇÃO CONCLUÍDA COM SUCESSO!")
+    print(" INSTALAÇÃO CONCLUÍDA COM SUCESSO!")
     print("=" * 60)
     print("\n Uso:")
     print("   from agent import Agent")
