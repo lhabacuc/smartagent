@@ -6,8 +6,8 @@ app = Flask(__name__)
 # Cria múltiplos agentes com diferentes modelos/contextos
 agents = {
     'groq': Agent(model="groq", enable_history=True, history_limit=10),
-    'openai': Agent(model="groq", enable_history=True, history_limit=10, info="Você é um agente OpenAI."),
-    'gemini': Agent(model="groq", enable_history=True, history_limit=10, info="Você é um agente Gemini."),
+    'openai': Agent(model="openai", enable_history=True, history_limit=10, info="Você é um agente OpenAI."),
+    'gemini': Agent(model="gemini", enable_history=True, history_limit=10, info="Você é um agente Gemini."),
 }
 
 HTML = '''

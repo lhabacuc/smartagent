@@ -11,7 +11,7 @@ dev:
 
 test:
 	@echo "Executando testes..."
-	python -m pytest tests/
+	@if [ -d tests ]; then python -m pytest tests/; else echo "Diretório tests/ não encontrado."; fi
 
 clean:
 	@echo "Limpando arquivos temporários..."
@@ -22,9 +22,9 @@ clean:
 
 uninstall:
 	@echo "🗑️ Desinstalando SmartAgent..."
-	pip uninstall -y smartagent
+	pip uninstall -y smartagent-sf
 
 reinstall: uninstall clean install
 	@echo "Reinstalação concluída"
 
-re r: clean uninstall all
+rer: clean uninstall install

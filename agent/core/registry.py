@@ -53,6 +53,10 @@ class ToolRegistry:
         """Retorna lista de nomes de ferramentas"""
         return list(self._tools.keys())
 
+    def list_tools(self) -> Dict[str, Callable]:
+        """Retorna dicionário de ferramentas registradas"""
+        return self._tools.copy()
+
 # Decorador global para facilitar uso
 def tool(func: Callable) -> Callable:
     """Decorador para marcar função como ferramenta"""

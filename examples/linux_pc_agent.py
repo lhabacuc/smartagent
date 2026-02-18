@@ -17,8 +17,12 @@ agent = Agent(model="groq")
 
 @agent.tool
 def executar_comando(comando: str):
-    """Executa um comando shell no terminal Linux"""
+    """Executa comando shell seguro (somente leitura/diagnóstico)"""
     try:
+        bloqueados = ["rm ", "mkfs", "dd ", "shutdown", "reboot", "init 0", "poweroff", "sudo "]
+        if any(token in comando.lower() for token in bloqueados):
+            return {"sucesso": False, "erro": "Comando bloqueado por segurança."}
+
         result = subprocess.run(
             comando, 
             shell=True, 

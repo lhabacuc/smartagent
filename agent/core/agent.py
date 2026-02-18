@@ -23,8 +23,8 @@ class Agent:
         self.registry = ToolRegistry()
         self.llm_client = get_llm_client(model, api_key)
         self.info = info
-        self.enable_history = enable_history or False
-        self.history_limit = history_limit or 5
+        self.enable_history = bool(enable_history)
+        self.history_limit = history_limit if history_limit and history_limit > 0 else 20
         self.history = []
         self.analyzer = Analyzer(self.llm_client, info=info)
         self.executor = Executor(self.registry)
@@ -91,7 +91,6 @@ class Agent:
     def chat(self, prompt: str) -> str:
         """Atalho para obter apenas a resposta final"""
         result = self.process(prompt)
-        self._add_to_history(result)
         return result['final_response']
 
     def help(self):
@@ -124,7 +123,7 @@ class Agent:
         print("\n=== Divirta-se! ===")
         print("Use o agente com responsabilidade e aproveite suas capacidades!")
     
-    def help_var():
+    def help_var(self):
         """variaveis de ambiente"""
         print("=== Variáveis de Ambiente ===")
         print("Você pode configurar o agente usando as seguintes variáveis de ambiente:")
@@ -173,7 +172,12 @@ class Agent:
         self.registry = ToolRegistry()
         self.analyzer = Analyzer(self.llm_client, info=self.info)
         self.executor = Executor(self.registry)
-        self.responder = Responder(self.llm_client, info=self.info)
+        self.responder = Responder(
+            self.llm_client,
+            self,
+            info=self.info,
+            enable_history=self.enable_history
+        )
     
     def run(self):
         """Inicia modo interativo"""

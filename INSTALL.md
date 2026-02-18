@@ -6,14 +6,12 @@
 ### 1. Instalação Rápida (Recomendado)
 
 ```bash
-cd agent
 python install.py
 ```
 
 ### 2. Usando o Script Bash
 
 ```bash
-cd agent
 chmod +x install.sh
 ./install.sh
 ```
@@ -21,7 +19,6 @@ chmod +x install.sh
 ### 3. Instalação Manual
 
 ```bash
-cd agent
 pip install requests
 pip install -e .
 ```
@@ -29,7 +26,6 @@ pip install -e .
 ### 4. Usando Makefile
 
 ```bash
-cd agent
 make install
 ```
 
@@ -54,10 +50,10 @@ export GROQ_API_KEY="sua_chave_aqui"
 export OPENAI_API_KEY="sua_chave_aqui"
 
 # Google Gemini
-export GOOGLE_API_KEY="sua_chave_aqui"
+export GEMINI_API_KEY="sua_chave_aqui"
 
 # Grok
-export GROK_API_KEY="sua_chave_aqui"
+export XAI_API_KEY="sua_chave_aqui"
 
 # Modelo
 export LLM="seu_modelo_aqui"
@@ -74,7 +70,7 @@ agent = Agent(model="groq", api_key="sua_chave")
 ```bash
 make uninstall
 # ou
-pip uninstall agent
+pip uninstall smartagent-sf
 ```
 
 ## Problemas Comuns
