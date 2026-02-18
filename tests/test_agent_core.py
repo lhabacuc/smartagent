@@ -35,6 +35,13 @@ class DummyLLMNoTool:
 
 
 class AgentCoreTests(unittest.TestCase):
+    def test_provider_argument_overrides_env_and_model(self):
+        with patch("agent.core.agent.get_llm_client") as mocked_factory:
+            mocked_factory.return_value = DummyLLMNoTool()
+            with patch.dict("os.environ", {"SMARTAGENT_PROVIDER": "openai"}, clear=False):
+                Agent(model="groq", provider="gemini")
+        mocked_factory.assert_called_once_with("gemini", None)
+
     def test_process_executes_registered_tool(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMToolCall()):
             agent = Agent(model="groq")

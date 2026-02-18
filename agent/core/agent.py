@@ -16,6 +16,7 @@ class Agent:
         info: str = "",
         enable_history: bool = False,
         history_limit: int = 20,
+        provider: Optional[str] = None,
     ):
         """
         Inicializa agente
@@ -26,10 +27,11 @@ class Agent:
             info: Instruções adicionais para o agente (contexto, comportamento, etc.)
             enable_history (bool): Ativa/desativa histórico de interações
             history_limit (int): Número máximo de mensagens no histórico
+            provider: Alias explícito para provider (prioriza sobre model)
         """
-        provider = os.getenv("SMARTAGENT_PROVIDER") or model
+        provider_name = provider or os.getenv("SMARTAGENT_PROVIDER") or model
         self.registry = ToolRegistry()
-        self.llm_client = get_llm_client(provider, api_key)
+        self.llm_client = get_llm_client(provider_name, api_key)
         self.info = info
         self.enable_history = bool(enable_history)
         self.history_limit = history_limit if history_limit and history_limit > 0 else 20
