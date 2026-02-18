@@ -43,6 +43,9 @@ print("✅ SmartAgent instalado com sucesso!")
 Configure as chaves de API como variáveis de ambiente:
 
 ```bash
+# Provider default global (opcional)
+export SMARTAGENT_PROVIDER="groq"
+
 # Groq
 export GROQ_API_KEY="sua_chave_aqui"
 
@@ -55,7 +58,14 @@ export GEMINI_API_KEY="sua_chave_aqui"
 # Grok
 export XAI_API_KEY="sua_chave_aqui"
 
-# Modelo
+# Modelo global (novo)
+export SMARTAGENT_MODEL="seu_modelo_aqui"
+
+# Modelo por provider (opcional)
+export SMARTAGENT_OPENAI_MODEL="gpt-4o-mini"
+export SMARTAGENT_GROQ_MODEL="qwen/qwen3-32b"
+
+# Compatibilidade legada
 export LLM="seu_modelo_aqui"
 ```
 

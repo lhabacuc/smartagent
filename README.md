@@ -64,12 +64,23 @@ agent = Agent(
 ## Variáveis de Ambiente
 
 ```bash
+# Provider default global (opcional)
+export SMARTAGENT_PROVIDER="groq"
+
 export GROQ_API_KEY="your-key"
 export OPENAI_API_KEY="your-key"
 export GEMINI_API_KEY="your-key"
 export XAI_API_KEY="your-key"
 export LLAMA_API_KEY="your-key"
 
+# Modelo global (novo)
+export SMARTAGENT_MODEL="modelo-ai"
+
+# Modelo por provider (opcional)
+export SMARTAGENT_OPENAI_MODEL="gpt-4o-mini"
+export SMARTAGENT_GROQ_MODEL="qwen/qwen3-32b"
+
+# Compatibilidade legada (ainda suportado)
 export LLM="modelo-ai"
 ```
 
