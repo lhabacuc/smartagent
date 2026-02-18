@@ -1,12 +1,18 @@
 import unittest
 from unittest.mock import patch
 
+from smartagent_sf import agent as compat_agent
 from agent.core.config import AgentConfig
 from agent.integrations import normalize_provider, get_llm_client
 from agent.core.exceptions import LLMError
 
 
 class ConfigAndFactoryTests(unittest.TestCase):
+    def test_compat_namespace_import(self):
+        self.assertTrue(hasattr(compat_agent, "Agent"))
+        self.assertTrue(hasattr(compat_agent, "AgentConfig"))
+        self.assertTrue(hasattr(compat_agent, "tool"))
+
     def test_agent_config_uses_model_as_legacy_provider(self):
         with self.assertWarns(DeprecationWarning):
             cfg = AgentConfig.from_inputs(model="openai")

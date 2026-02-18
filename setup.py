@@ -16,7 +16,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/lhabacuc/smartagent",
-    packages=find_packages(include=["agent", "agent.*"]),
+    packages=find_packages(include=["agent", "agent.*", "smartagent_sf", "smartagent_sf.*"]),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
