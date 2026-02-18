@@ -1,5 +1,5 @@
 
-.PHONY: install dev test clean
+.PHONY: install dev test test-env clean
 
 install:
 	@echo "Instalando SmartAgent..."
@@ -21,6 +21,13 @@ test:
 	else \
 		echo "Diretório tests/ não encontrado."; \
 	fi
+
+test-env:
+	@echo "Criando/atualizando ambiente virtual de teste (.venv)..."
+	@python3 -m venv .venv
+	@. .venv/bin/activate && python -m ensurepip --upgrade >/dev/null 2>&1 || true
+	@echo "Executando testes no .venv..."
+	@. .venv/bin/activate && python -m unittest discover -s tests -p 'test_*.py'
 
 clean:
 	@echo "Limpando arquivos temporários..."
