@@ -84,7 +84,8 @@ class AgentCoreTests(unittest.TestCase):
 
             out = io.StringIO()
             with redirect_stdout(out):
-                agent.help()
+                with self.assertWarns(DeprecationWarning):
+                    agent.help()
                 agent.list_tools()
 
             before_reset = agent.registry.get_tools_list()
