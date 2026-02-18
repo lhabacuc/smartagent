@@ -12,27 +12,27 @@ class Analyzer:
     def analyze(self, user_prompt: str, tools_description: str) -> Dict[str, Any]:
         """Analisa o prompt e retorna plano de execução"""
 
-        info_section = f"\n\nInstruções adicionais:\n{self.info}\n" if self.info else ""
+        info_section = f"\n\nAdditional instructions:\n{self.info}\n" if self.info else ""
 
-        system_prompt = f"""Tua tarefa é analisar o pedido do usuário e identificar:
-1. Quais funções locais devem ser executadas
-2. Quais argumentos cada função deve receber
+        system_prompt = f"""Your task is to analyze the user request and identify:
+1. Which local functions should be executed
+2. Which arguments each function should receive
 
 {info_section}
-Ferramentas disponíveis:
+Available tools:
 {tools_description}
 
-Retorna SOMENTE JSON válido (sem markdown, sem texto extra) no formato:
-{{"isValid": true, "tool_calls": [{{"name": "nome_funcao", "args": {{}}}}]}}
+Return ONLY valid JSON (no markdown, no extra text) in this format:
+{{"isValid": true, "tool_calls": [{{"name": "function_name", "args": {{}}}}]}}
 
-Se o pedido não puder ser atendido, retorna:
-{{"isValid": false, "reason": "motivo"}}
+If the request cannot be handled, return:
+{{"isValid": false, "reason": "reason"}}
 
-Exemplo:
-Usuário: "Quais produtos baratos?"
-Resposta: {{"isValid": true, "tool_calls": [{{"name": "get_products", "args": {{"max_price": 100}}}}]}}
+Example:
+User: "Which cheap products are available?"
+Response: {{"isValid": true, "tool_calls": [{{"name": "get_products", "args": {{"max_price": 100}}}}]}}
 
-NÃO INFORME NADA AO USUARIO SOBRE O FUNCIONAMENTO INTERNO DO AGENTE
+Do not reveal internal agent behavior to the user.
 """
 
         try:
@@ -41,17 +41,17 @@ NÃO INFORME NADA AO USUARIO SOBRE O FUNCIONAMENTO INTERNO DO AGENTE
                 analysis = json.loads(response.strip())
             except Exception as exc:
                 raise AnalysisError(
-                    "Resposta do LLM deve ser JSON estrito, sem texto extra."
+                    "LLM analysis response must be strict JSON without extra text."
                 ) from exc
 
             if not isinstance(analysis, dict):
-                raise AnalysisError("JSON de análise deve ser um objeto.")
+                raise AnalysisError("Analysis JSON must be an object.")
 
             is_valid = bool(analysis.get("isValid", True))
             normalized: Dict[str, Any] = {"isValid": is_valid}
 
             if not is_valid:
-                normalized["reason"] = analysis.get("reason", "Pedido inválido")
+                normalized["reason"] = analysis.get("reason", "Invalid request")
                 normalized["tool_calls"] = []
                 normalized["tool_using_exec"] = []
                 normalized["data_using_util"] = {}
@@ -63,24 +63,24 @@ NÃO INFORME NADA AO USUARIO SOBRE O FUNCIONAMENTO INTERNO DO AGENTE
                 legacy_tools = analysis.get("tool_using_exec", [])
                 legacy_args = analysis.get("data_using_util", {})
                 if not isinstance(legacy_tools, list):
-                    raise AnalysisError("Campo legado 'tool_using_exec' deve ser lista.")
+                    raise AnalysisError("Legacy field 'tool_using_exec' must be a list.")
                 if not isinstance(legacy_args, dict):
-                    raise AnalysisError("Campo legado 'data_using_util' deve ser objeto.")
+                    raise AnalysisError("Legacy field 'data_using_util' must be an object.")
                 tool_calls = [{"name": name, "args": legacy_args} for name in legacy_tools]
 
             if not isinstance(tool_calls, list):
-                raise AnalysisError("Campo 'tool_calls' deve ser uma lista.")
+                raise AnalysisError("Field 'tool_calls' must be a list.")
 
             validated_calls = []
             for item in tool_calls:
                 if not isinstance(item, dict):
-                    raise AnalysisError("Cada item de 'tool_calls' deve ser objeto.")
+                    raise AnalysisError("Each item in 'tool_calls' must be an object.")
                 name = item.get("name")
                 args = item.get("args", {})
                 if not isinstance(name, str) or not name.strip():
-                    raise AnalysisError("Campo 'name' em tool_calls deve ser string não vazia.")
+                    raise AnalysisError("Field 'name' in tool_calls must be a non-empty string.")
                 if not isinstance(args, dict):
-                    raise AnalysisError("Campo 'args' em tool_calls deve ser objeto.")
+                    raise AnalysisError("Field 'args' in tool_calls must be an object.")
                 validated_calls.append({"name": name.strip(), "args": args})
 
             normalized["tool_calls"] = validated_calls
@@ -90,4 +90,4 @@ NÃO INFORME NADA AO USUARIO SOBRE O FUNCIONAMENTO INTERNO DO AGENTE
             return normalized
 
         except Exception as e:
-            raise AnalysisError(f"Erro na análise: {str(e)}")
+            raise AnalysisError(f"Analysis error: {str(e)}")
