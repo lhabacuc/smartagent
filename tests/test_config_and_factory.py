@@ -27,6 +27,11 @@ class ConfigAndFactoryTests(unittest.TestCase):
         self.assertEqual(normalize_provider("google-gemini"), "gemini")
         self.assertEqual(normalize_provider("xai"), "grok")
 
+    def test_agent_config_separates_provider_and_model(self):
+        cfg = AgentConfig.from_inputs(provider="openai", model="gpt-4o-mini")
+        self.assertEqual(cfg.provider, "openai")
+        self.assertEqual(cfg.model, "gpt-4o-mini")
+
     def test_get_llm_client_raises_for_unknown_provider(self):
         with self.assertRaises(LLMError):
             get_llm_client("unknown-provider")
