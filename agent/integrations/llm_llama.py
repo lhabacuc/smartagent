@@ -1,21 +1,26 @@
 
-import os
-import requests
 from typing import Optional
 from .llm_base import BaseLLM
-from .config import resolve_model
+from .config import resolve_model, resolve_api_key
 from ..core.exceptions import LLMError
 
 class LlamaLLM(BaseLLM):
     """Cliente para Llama Cloud API (Meta)"""
     
-    def __init__(self, api_key: Optional[str] = None):
-        super().__init__(api_key or os.getenv("LLAMA_API_KEY"))
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        timeout: float = 30.0,
+        retries: int = 2,
+    ):
+        resolved_api_key = resolve_api_key("llama", api_key, "LLAMA_API_KEY")
+        super().__init__(resolved_api_key, model=model, timeout=timeout, retries=retries)
         if not self.api_key:
             raise LLMError("LLAMA_API_KEY não encontrada")
         
         self.base_url = "https://api.together.xyz/v1/chat/completions"
-        self.model = resolve_model("llama", "meta-llama/Llama-3-70b-chat-hf")
+        self.model = model or resolve_model("llama", "meta-llama/Llama-3-70b-chat-hf")
     
     def chat(self, system_prompt: str, user_prompt: str) -> str:
         headers = {
@@ -33,8 +38,7 @@ class LlamaLLM(BaseLLM):
         }
         
         try:
-            response = requests.post(self.base_url, json=data, headers=headers)
-            response.raise_for_status()
-            return response.json()["choices"][0]["message"]["content"]
+            payload = self._post_json(self.base_url, payload=data, headers=headers)
+            return payload["choices"][0]["message"]["content"]
         except Exception as e:
             raise LLMError(f"Erro Llama: {str(e)}")
