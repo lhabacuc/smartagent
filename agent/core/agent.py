@@ -1,9 +1,9 @@
-import os
 from typing import Dict, Any, Callable, Optional
 from .registry import ToolRegistry, tool
 from .analyzer import Analyzer
 from .executor import Executor
 from .responder import Responder
+from .config import AgentConfig
 from ..integrations import get_llm_client
 
 class Agent:
@@ -11,34 +11,58 @@ class Agent:
     
     def __init__(
         self,
-        model: str = "groq",
+        model: Optional[str] = None,
         api_key: Optional[str] = None,
         info: str = "",
         enable_history: bool = False,
         history_limit: int = 20,
         provider: Optional[str] = None,
+        timeout: Optional[float] = None,
+        retries: Optional[int] = None,
     ):
         """
         Inicializa agente
         
         Args:
-            model: Provider do LLM (groq, openai, gemini, grok, ollama, llama)
+            model: Modelo do LLM (legado: também aceita provider)
             api_key: Chave API (opcional, pode usar variável de ambiente)
             info: Instruções adicionais para o agente (contexto, comportamento, etc.)
             enable_history (bool): Ativa/desativa histórico de interações
             history_limit (int): Número máximo de mensagens no histórico
-            provider: Alias explícito para provider (prioriza sobre model)
+            provider: Provider do LLM (groq, openai, gemini, grok, ollama, llama)
+            timeout: Timeout HTTP em segundos
+            retries: Número de retries HTTP por requisição
         """
-        provider_name = provider or os.getenv("SMARTAGENT_PROVIDER") or model
+        self.config = AgentConfig.from_inputs(
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            info=info,
+            enable_history=enable_history,
+            history_limit=history_limit,
+            timeout=timeout,
+            retries=retries,
+        )
         self.registry = ToolRegistry()
-        self.llm_client = get_llm_client(provider_name, api_key)
-        self.info = info
-        self.enable_history = bool(enable_history)
-        self.history_limit = history_limit if history_limit and history_limit > 0 else 20
+        self.llm_client = get_llm_client(
+            provider=self.config.provider,
+            api_key=self.config.api_key,
+            model=self.config.model,
+            timeout=self.config.timeout,
+            retries=self.config.retries,
+        )
+        self.info = self.config.info
+        self.enable_history = self.config.enable_history
+        self.history_limit = self.config.history_limit
         self.history = []
-        self.analyzer = Analyzer(self.llm_client, info=info)
+        self.analyzer = Analyzer(self.llm_client, info=self.info)
         self.executor = Executor(self.registry)
-        self.responder = Responder(self.llm_client, self, info=info, enable_history=enable_history)
+        self.responder = Responder(
+            self.llm_client,
+            self,
+            info=self.info,
+            enable_history=self.enable_history,
+        )
 
     def tool(self, func: Callable = None, name: str = None):
         """Decorador para registrar ferramentas"""
