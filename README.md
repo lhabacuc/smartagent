@@ -6,22 +6,24 @@ Biblioteca Python leve para criar agentes de IA com execução determinística e
 ## Características ✨
 
 - **Multi-Provider**: Suporta Groq, OpenAI, Gemini, Grok, Ollama e Llama
-- **Sem Schemas**: Não precisa de Pydantic ou definições complexas
 - **3 Fases**: Análise → Execução → Resposta
+- **Tool Calls Estruturados**: `tool_calls` com argumentos por função
+- **JSON Estrito na Análise**: resposta do LLM para analyzer deve ser JSON válido sem texto extra
+- **Execução Validada**: assinatura da função é validada antes da execução
+- **Timeout/Retry HTTP**: configurável globalmente por env ou por `Agent(...)`
 - **Econômico**: Minimiza uso de tokens
-- **Simples**: Menos de 500 linhas de código
+- **Compatível**: mantém fallback para APIs/env vars legadas por janela de transição
 
 ## Instalação
 
 ```bash
-# Instalar dependências
-pip install requests
+pip install smartagent-sf
 ```
 
 ## Uso Rápido
 
 ```python
-from agent import Agent
+from smartagent_sf import Agent
 
 # Criar agente
 agent = Agent(provider="groq")
@@ -34,6 +36,14 @@ def get_products(max_price=100):
 # Executar
 response = agent.chat("Quais produtos baratos?")
 print(response)
+```
+
+Também é suportado:
+
+```python
+from smartagent_sf import agent
+
+bot = agent.Agent(provider="groq")
 ```
 
 ## Instruções Customizadas
@@ -72,6 +82,7 @@ export OPENAI_API_KEY="your-key"
 export GEMINI_API_KEY="your-key"
 export XAI_API_KEY="your-key"
 export LLAMA_API_KEY="your-key"
+export SMARTAGENT_API_KEY="your-key"
 
 # Modelo global (novo)
 export SMARTAGENT_MODEL="modelo-ai"
@@ -93,6 +104,24 @@ export LLM="modelo-ai"
 - `model=\"groq\"` (estilo antigo) ainda funciona, mas o recomendado é `provider=\"groq\"`.
 - As variáveis `*_API_KEY` continuam suportadas.
 - `LLM` continua suportada como fallback para modelo global.
+- Métodos legados no `Agent` (`help`, `help_var`, `pociveis_erros`, `run`) ainda existem, mas estão deprecados.
+
+## Contrato de Execução de Ferramentas
+
+O analyzer trabalha com `tool_calls`:
+
+```json
+{
+  "isValid": true,
+  "tool_calls": [
+    {"name": "get_products", "args": {"max_price": 100}}
+  ]
+}
+```
+
+- A resposta de análise deve ser JSON estrito.
+- Cada chamada de função é validada contra a assinatura real da ferramenta.
+- O executor retorna resultado estruturado por chamada (`ok`, `result`, `error`).
 
 ## Arquitetura
 
