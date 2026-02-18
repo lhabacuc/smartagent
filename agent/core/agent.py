@@ -1,4 +1,4 @@
-
+import os
 from typing import Dict, Any, Callable, Optional
 from .registry import ToolRegistry, tool
 from .analyzer import Analyzer
@@ -9,7 +9,14 @@ from ..integrations import get_llm_client
 class Agent:
     """Agente inteligente com execução em 3 fases"""
     
-    def __init__(self, model: str = "groq", api_key: Optional[str] = None, info: str = "", enable_history: bool = False, history_limit: int = 20):
+    def __init__(
+        self,
+        model: str = "groq",
+        api_key: Optional[str] = None,
+        info: str = "",
+        enable_history: bool = False,
+        history_limit: int = 20,
+    ):
         """
         Inicializa agente
         
@@ -20,8 +27,9 @@ class Agent:
             enable_history (bool): Ativa/desativa histórico de interações
             history_limit (int): Número máximo de mensagens no histórico
         """
+        provider = os.getenv("SMARTAGENT_PROVIDER") or model
         self.registry = ToolRegistry()
-        self.llm_client = get_llm_client(model, api_key)
+        self.llm_client = get_llm_client(provider, api_key)
         self.info = info
         self.enable_history = bool(enable_history)
         self.history_limit = history_limit if history_limit and history_limit > 0 else 20
