@@ -84,14 +84,20 @@ class Agent:
         
         # Fase 2: Execução
         if analysis.get('isValid', False):
-            execution_data = self.executor.execute(
-                analysis['tool_using_exec'],
-                analysis['data_using_util']
-            )
+            tool_calls = analysis.get("tool_calls")
+            if tool_calls is None:
+                # Compatibilidade com formato antigo de análise
+                legacy_tools = analysis.get("tool_using_exec", [])
+                legacy_args = analysis.get("data_using_util", {})
+                tool_calls = [{"name": t, "args": legacy_args} for t in legacy_tools]
+            execution_data = self.executor.execute(tool_calls)
         else:
             execution_data = {
                 'executed_tools': [],
-                'used_data': {}
+                'used_data': {},
+                'results': {},
+                'call_results': [],
+                'success': False,
             }
         
         # Fase 3: Resposta

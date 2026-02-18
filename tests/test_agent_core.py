@@ -5,17 +5,17 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from agent.core.agent import Agent
+from agent.core.exceptions import AnalysisError
 from agent.core.registry import ToolRegistry
 
 
 class DummyLLMToolCall:
     def chat(self, system_prompt: str, user_prompt: str) -> str:
-        if "Retorna SEMPRE JSON válido" in system_prompt:
+        if "tool_calls" in system_prompt:
             return json.dumps(
                 {
                     "isValid": True,
-                    "data_using_util": {"a": 2, "b": 3},
-                    "tool_using_exec": ["somar"],
+                    "tool_calls": [{"name": "somar", "args": {"a": 2, "b": 3}}],
                 }
             )
         return "resposta final"
@@ -23,15 +23,33 @@ class DummyLLMToolCall:
 
 class DummyLLMNoTool:
     def chat(self, system_prompt: str, user_prompt: str) -> str:
-        if "Retorna SEMPRE JSON válido" in system_prompt:
+        if "tool_calls" in system_prompt:
             return json.dumps(
                 {
                     "isValid": True,
-                    "data_using_util": {},
-                    "tool_using_exec": [],
+                    "tool_calls": [],
                 }
             )
         return "sem ferramenta"
+
+
+class DummyLLMInvalidArgs:
+    def chat(self, system_prompt: str, user_prompt: str) -> str:
+        if "tool_calls" in system_prompt:
+            return json.dumps(
+                {
+                    "isValid": True,
+                    "tool_calls": [{"name": "somar", "args": {"x": 2}}],
+                }
+            )
+        return "sem ferramenta"
+
+
+class DummyLLMNonJsonAnalysis:
+    def chat(self, system_prompt: str, user_prompt: str) -> str:
+        if "tool_calls" in system_prompt:
+            return "```json {\"isValid\": true} ```"
+        return "ok"
 
 
 class AgentCoreTests(unittest.TestCase):
@@ -62,6 +80,28 @@ class AgentCoreTests(unittest.TestCase):
         self.assertEqual(result["used_data"], {"a": 2, "b": 3})
         self.assertEqual(result["execution_data"]["results"]["somar"], 5)
         self.assertEqual(result["final_response"], "resposta final")
+
+    def test_process_reports_invalid_tool_args(self):
+        with patch("agent.core.agent.get_llm_client", return_value=DummyLLMInvalidArgs()):
+            agent = Agent(model="groq")
+
+            @agent.tool
+            def somar(a, b):
+                return a + b
+
+            result = agent.process("soma para mim")
+
+        self.assertFalse(result["execution_data"]["success"])
+        self.assertEqual(result["executed_tools"], [])
+        self.assertEqual(len(result["execution_data"]["call_results"]), 1)
+        self.assertFalse(result["execution_data"]["call_results"][0]["ok"])
+        self.assertIn("missing a required argument", result["execution_data"]["call_results"][0]["error"])
+
+    def test_analyzer_requires_strict_json(self):
+        with patch("agent.core.agent.get_llm_client", return_value=DummyLLMNonJsonAnalysis()):
+            agent = Agent(model="groq")
+            with self.assertRaises(AnalysisError):
+                agent.process("qualquer coisa")
 
     def test_chat_history_does_not_duplicate_entries(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMNoTool()):

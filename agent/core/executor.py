@@ -1,7 +1,6 @@
-
+import inspect
 from typing import Dict, Any, List
 from .registry import ToolRegistry
-from .exceptions import ExecutionError
 
 
 class Executor:
@@ -10,31 +9,64 @@ class Executor:
     def __init__(self, registry: ToolRegistry):
         self.registry = registry
     
-    def execute(self, tools: List[str], params: Dict[str, Any]) -> Dict[str, Any]:
-        """Executa ferramentas e retorna resultados agregados"""
-        results = {}
-        executed_tools = []
+    def execute(self, tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Executa chamadas de ferramentas e retorna resultados estruturados."""
+        call_results = []
+        results: Dict[str, Any] = {}
+        executed_tools: List[str] = []
 
-        if not tools:
+        if not tool_calls:
             return {
                 'success': True,
                 'results': {},
+                'call_results': [],
                 'executed_tools': []
             }
 
-        for tool_name in tools:
-            if hasattr(self.registry, tool_name) or tool_name in getattr(self.registry, '_tools', {}):
+        available_tools = self.registry.list_tools()
+
+        for call in tool_calls:
+            tool_name = call.get("name") if isinstance(call, dict) else None
+            raw_args = call.get("args", {}) if isinstance(call, dict) else {}
+
+            entry = {
+                "name": tool_name,
+                "args": raw_args,
+                "ok": False,
+                "result": None,
+                "error": None,
+            }
+
+            if not isinstance(tool_name, str) or not tool_name:
+                entry["error"] = "Nome da ferramenta inválido."
+                call_results.append(entry)
+                continue
+
+            if tool_name in available_tools:
                 try:
-                    result = self.registry.execute(tool_name, **params)
+                    if not isinstance(raw_args, dict):
+                        raise TypeError("args deve ser um objeto JSON.")
+
+                    func = available_tools[tool_name]
+                    sig = inspect.signature(func)
+                    bound = sig.bind(**raw_args)
+                    bound.apply_defaults()
+
+                    result = self.registry.execute(tool_name, **bound.arguments)
                     results[tool_name] = result
                     executed_tools.append(tool_name)
-                except Exception as e:
-                    results[tool_name] = f"Erro ao executar: {str(e)}"
+                    entry["ok"] = True
+                    entry["result"] = result
+                except Exception as exc:
+                    entry["error"] = f"Erro ao executar: {str(exc)}"
             else:
-                results[tool_name] = f"Ferramenta '{tool_name}' não registrada. Nenhuma ação executada."
-        
+                entry["error"] = f"Ferramenta '{tool_name}' não registrada."
+
+            call_results.append(entry)
+
         return {
-            'success': True,
+            'success': all(r["ok"] for r in call_results) if call_results else True,
             'results': results,
+            'call_results': call_results,
             'executed_tools': executed_tools
         }
