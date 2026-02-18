@@ -24,7 +24,7 @@ pip install requests
 from agent import Agent
 
 # Criar agente
-agent = Agent(model="groq")
+agent = Agent(provider="groq")
 
 # Registrar ferramentas
 @agent.tool
@@ -42,7 +42,7 @@ Você pode adicionar instruções personalizadas ao agente:
 
 ```python
 agent = Agent(
-    model="groq",
+    provider="groq",
     info="""
     Você é um assistente especializado em e-commerce.
     - Sempre sugira produtos relacionados
@@ -54,12 +54,12 @@ agent = Agent(
 
 ## Providers Suportados
 
-- **Groq**: `Agent(model="groq", api_key="...")`
-- **OpenAI**: `Agent(model="openai", api_key="...")`
-- **Gemini**: `Agent(model="gemini", api_key="...")`
-- **Grok**: `Agent(model="grok", api_key="...")`
-- **Ollama**: `Agent(model="ollama")` (local)
-- **Llama**: `Agent(model="llama", api_key="...")`
+- **Groq**: `Agent(provider="groq", api_key="...")`
+- **OpenAI**: `Agent(provider="openai", api_key="...")`
+- **Gemini**: `Agent(provider="gemini", api_key="...")`
+- **Grok**: `Agent(provider="grok", api_key="...")`
+- **Ollama**: `Agent(provider="ollama")` (local)
+- **Llama**: `Agent(provider="llama", api_key="...")`
 
 ## Variáveis de Ambiente
 
@@ -80,9 +80,19 @@ export SMARTAGENT_MODEL="modelo-ai"
 export SMARTAGENT_OPENAI_MODEL="gpt-4o-mini"
 export SMARTAGENT_GROQ_MODEL="qwen/qwen3-32b"
 
+# Rede (opcional)
+export SMARTAGENT_TIMEOUT="30"
+export SMARTAGENT_RETRIES="2"
+
 # Compatibilidade legada (ainda suportado)
 export LLM="modelo-ai"
 ```
+
+## Compatibilidade (1-2 versões)
+
+- `model=\"groq\"` (estilo antigo) ainda funciona, mas o recomendado é `provider=\"groq\"`.
+- As variáveis `*_API_KEY` continuam suportadas.
+- `LLM` continua suportada como fallback para modelo global.
 
 ## Arquitetura
 

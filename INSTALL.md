@@ -34,7 +34,7 @@ make install
 ```python
 from agent import Agent
 
-agent = Agent(model="groq")
+agent = Agent(provider="groq")
 print("✅ SmartAgent instalado com sucesso!")
 ```
 
@@ -65,6 +65,10 @@ export SMARTAGENT_MODEL="seu_modelo_aqui"
 export SMARTAGENT_OPENAI_MODEL="gpt-4o-mini"
 export SMARTAGENT_GROQ_MODEL="qwen/qwen3-32b"
 
+# Rede (opcional)
+export SMARTAGENT_TIMEOUT="30"
+export SMARTAGENT_RETRIES="2"
+
 # Compatibilidade legada
 export LLM="seu_modelo_aqui"
 ```
@@ -72,7 +76,7 @@ export LLM="seu_modelo_aqui"
 Ou passe diretamente no código:
 
 ```python
-agent = Agent(model="groq", api_key="sua_chave")
+agent = Agent(provider="groq", api_key="sua_chave")
 ```
 
 ## Desinstalação
