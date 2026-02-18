@@ -1,4 +1,7 @@
 smartagent_sf.egg-info/
 __pycache__/
+*.pyc
+.pytest_cache/
 *.env*
 release/
+dist/
