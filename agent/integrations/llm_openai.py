@@ -3,6 +3,7 @@ import os
 import requests
 from typing import Optional
 from .llm_base import BaseLLM
+from .config import resolve_model
 from ..core.exceptions import LLMError
 
 class OpenAILLM(BaseLLM):
@@ -14,7 +15,7 @@ class OpenAILLM(BaseLLM):
             raise LLMError("OPENAI_API_KEY não encontrada")
         
         self.base_url = "https://api.openai.com/v1/chat/completions"
-        self.model = os.getenv("LLM") or "gpt-4o-mini"
+        self.model = resolve_model("openai", "gpt-4o-mini")
     
     def chat(self, system_prompt: str, user_prompt: str) -> str:
         headers = {

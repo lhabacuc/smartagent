@@ -1,6 +1,7 @@
 import os
 import requests
 from .llm_base import BaseLLM
+from .config import resolve_model
 from ..core.exceptions import LLMError
 
 class OllamaLLM(BaseLLM):
@@ -9,7 +10,7 @@ class OllamaLLM(BaseLLM):
     def __init__(self):
         super().__init__(None)
         self.base_url = "http://localhost:11434/api/chat"
-        self.model = os.getenv("LLM") or "llama3.2"
+        self.model = resolve_model("ollama", "llama3.2")
     
     def chat(self, system_prompt: str, user_prompt: str) -> str:
         data = {

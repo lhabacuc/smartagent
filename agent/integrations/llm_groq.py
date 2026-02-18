@@ -3,6 +3,7 @@ import os
 import requests
 from typing import Optional
 from .llm_base import BaseLLM
+from .config import resolve_model
 from ..core.exceptions import LLMError
 
 class GroqLLM(BaseLLM):
@@ -14,7 +15,7 @@ class GroqLLM(BaseLLM):
             raise LLMError("GROQ_API_KEY não encontrada")
         
         self.base_url = "https://api.groq.com/openai/v1/chat/completions"
-        self.model = os.getenv("LLM") or "qwen/qwen3-32b"
+        self.model = resolve_model("groq", "qwen/qwen3-32b")
     
     def chat(self, system_prompt: str, user_prompt: str) -> str:
         headers = {

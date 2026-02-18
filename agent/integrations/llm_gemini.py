@@ -3,6 +3,7 @@ import os
 import requests
 from typing import Optional
 from .llm_base import BaseLLM
+from .config import resolve_model
 from ..core.exceptions import LLMError
 
 class GeminiLLM(BaseLLM):
@@ -13,7 +14,7 @@ class GeminiLLM(BaseLLM):
         if not self.api_key:
             raise LLMError("GEMINI_API_KEY não encontrada")
         
-        self.model = os.getenv("LLM") or "gemini-2.0-flask"
+        self.model = resolve_model("gemini", "gemini-2.0-flask")
     
     def chat(self, system_prompt: str, user_prompt: str) -> str:
         url = f"https://generativelanguage.googleapis.com/v1/models/{self.model}:generateContent?key={self.api_key}"

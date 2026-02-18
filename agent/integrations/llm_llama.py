@@ -3,6 +3,7 @@ import os
 import requests
 from typing import Optional
 from .llm_base import BaseLLM
+from .config import resolve_model
 from ..core.exceptions import LLMError
 
 class LlamaLLM(BaseLLM):
@@ -14,7 +15,7 @@ class LlamaLLM(BaseLLM):
             raise LLMError("LLAMA_API_KEY não encontrada")
         
         self.base_url = "https://api.together.xyz/v1/chat/completions"
-        self.model = os.getenv("LLM") or "meta-llama/Llama-3-70b-chat-hf"
+        self.model = resolve_model("llama", "meta-llama/Llama-3-70b-chat-hf")
     
     def chat(self, system_prompt: str, user_prompt: str) -> str:
         headers = {

@@ -3,6 +3,7 @@ import os
 import requests
 from typing import Optional
 from .llm_base import BaseLLM
+from .config import resolve_model
 from ..core.exceptions import LLMError
 
 class GrokLLM(BaseLLM):
@@ -14,7 +15,7 @@ class GrokLLM(BaseLLM):
             raise LLMError("XAI_API_KEY não encontrada")
         
         self.base_url = "https://api.x.ai/v1/chat/completions"
-        self.model = os.getenv("LLM") or "grok-beta"
+        self.model = resolve_model("grok", "grok-beta")
     
     def chat(self, system_prompt: str, user_prompt: str) -> str:
         headers = {
