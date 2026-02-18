@@ -11,7 +11,16 @@ dev:
 
 test:
 	@echo "Executando testes..."
-	@if [ -d tests ]; then python -m pytest tests/; else echo "Diretório tests/ não encontrado."; fi
+	@if [ -d tests ]; then \
+		if python -c "import importlib.util,sys;sys.exit(0 if importlib.util.find_spec('pytest') else 1)"; then \
+			python -m pytest tests/; \
+		else \
+			echo "pytest não encontrado, usando unittest."; \
+			python -m unittest discover -s tests -p 'test_*.py'; \
+		fi; \
+	else \
+		echo "Diretório tests/ não encontrado."; \
+	fi
 
 clean:
 	@echo "Limpando arquivos temporários..."
