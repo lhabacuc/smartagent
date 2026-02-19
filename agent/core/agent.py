@@ -7,6 +7,7 @@ from .analyzer import Analyzer
 from .executor import Executor
 from .responder import Responder
 from .config import AgentConfig
+from .exceptions import AnalysisError
 from ..integrations import get_llm_client
 
 class Agent:
@@ -161,7 +162,35 @@ class Agent:
             }
         else:
             # Fase 1: Análise
-            analysis = self.analyzer.analyze(user_prompt, tools_desc)
+            try:
+                analysis = self.analyzer.analyze(user_prompt, tools_desc)
+            except AnalysisError as exc:
+                analysis = {
+                    "isValid": True,
+                    "tool_calls": [],
+                    "tool_using_exec": [],
+                    "data_using_util": {},
+                    "reason": f"Analyzer fallback: {exc}",
+                }
+                execution_data = {
+                    'executed_tools': [],
+                    'used_data': {},
+                    'results': {},
+                    'call_results': [],
+                    'success': True,
+                }
+                final_response = self.responder.respond(user_prompt, execution_data)
+                result = {
+                    'final_response': final_response,
+                    'executed_tools': execution_data['executed_tools'],
+                    'used_data': analysis.get('data_using_util', {}),
+                    'user_prompt': user_prompt,
+                    'analysis': analysis,
+                    'execution_data': execution_data
+                }
+                if self.enable_history:
+                    self._add_to_history(result)
+                return result
 
             # Fase 2: Execução
             if analysis.get('isValid', False):
