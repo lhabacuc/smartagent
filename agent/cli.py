@@ -3,6 +3,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 import readline
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -10,6 +11,23 @@ from typing import Dict, List, Optional
 from .core.config import AgentConfig
 from .integrations import normalize_provider
 from .integrations.config import resolve_api_key, resolve_model
+
+
+def _print_agent_response(response: str) -> None:
+    text = response or ""
+    prefix = "Agente: "
+    should_animate = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+    if should_animate:
+        sys.stdout.write(prefix)
+        sys.stdout.flush()
+        for ch in text:
+            sys.stdout.write(ch)
+            sys.stdout.flush()
+            time.sleep(0.01)
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        return
+    print(f"{prefix}{text}")
 
 
 def show_env_help() -> None:
@@ -167,7 +185,7 @@ def run_interactive(agent) -> None:
             except SystemExit:
                 break
         response = agent.chat(user_input)
-        print(f"Agente: {response}")
+        _print_agent_response(response)
 
 
 _PROVIDER_API_ENV: Dict[str, str] = {
