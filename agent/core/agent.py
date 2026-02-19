@@ -1,4 +1,6 @@
 import warnings
+import inspect
+import subprocess
 from typing import Dict, Any, Callable, Optional
 from .registry import ToolRegistry, tool
 from .analyzer import Analyzer
@@ -45,6 +47,8 @@ class Agent:
             retries=retries,
         )
         self.registry = ToolRegistry()
+        self._disabled_tools = set()
+        self._register_default_tools()
         self.llm_client = get_llm_client(
             provider=self.config.provider,
             api_key=self.config.api_key,
@@ -56,7 +60,6 @@ class Agent:
         self.enable_history = self.config.enable_history
         self.history_limit = self.config.history_limit
         self.history = []
-        self._disabled_tools = set()
         self.analyzer = Analyzer(self.llm_client, info=self.info)
         self.executor = Executor(self.registry)
         self.responder = Responder(
@@ -65,6 +68,65 @@ class Agent:
             info=self.info,
             enable_history=self.enable_history,
         )
+
+    def _register_default_tools(self) -> None:
+        @self.tool(name="run_shell")
+        def _run_shell(command: str, timeout: Optional[float] = None):
+            """Executa comando no shell local e retorna stdout/stderr."""
+            effective_timeout = timeout if timeout is not None else self.config.timeout
+            try:
+                completed = subprocess.run(
+                    command,
+                    shell=True,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=float(effective_timeout),
+                )
+                return {
+                    "command": command,
+                    "stdout": completed.stdout,
+                    "stderr": completed.stderr,
+                    "exit_code": completed.returncode,
+                    "ok": completed.returncode == 0,
+                }
+            except subprocess.TimeoutExpired as exc:
+                return {
+                    "command": command,
+                    "stdout": exc.stdout or "",
+                    "stderr": exc.stderr or "",
+                    "exit_code": -1,
+                    "ok": False,
+                    "error": f"timeout after {effective_timeout}s",
+                }
+            except Exception as exc:
+                return {
+                    "command": command,
+                    "stdout": "",
+                    "stderr": str(exc),
+                    "exit_code": -1,
+                    "ok": False,
+                    "error": f"failed to execute command: {exc}",
+                }
+
+    def _get_enabled_tools_description(self) -> str:
+        descriptions = []
+        tools = self.registry.list_tools()
+        for name, func in tools.items():
+            if name in self._disabled_tools:
+                continue
+            sig = inspect.signature(func)
+            params = []
+            for param_name, param in sig.parameters.items():
+                annotation = param.annotation if param.annotation != inspect.Parameter.empty else "any"
+                params.append(f"{param_name}: {annotation}")
+            params_str = ", ".join(params)
+            desc = f"- {name}({params_str})"
+            doc = (func.__doc__ or "").strip()
+            if doc:
+                desc += f" - {doc}"
+            descriptions.append(desc)
+        return "\n".join(descriptions)
 
     def tool(self, func: Callable = None, name: str = None):
         """Decorador para registrar ferramentas"""
@@ -79,7 +141,7 @@ class Agent:
     def process(self, user_prompt: str) -> Dict[str, Any]:
         """Processa prompt completo em 3 fases"""
 
-        tools_desc = self.registry.get_tools_description()
+        tools_desc = self._get_enabled_tools_description()
 
         # Quando não há ferramentas registradas, evita análise JSON estrita.
         if not tools_desc.strip():
@@ -244,6 +306,7 @@ class Agent:
         """Reseta o agente"""
         self.registry = ToolRegistry()
         self._disabled_tools = set()
+        self._register_default_tools()
         self.analyzer = Analyzer(self.llm_client, info=self.info)
         self.executor = Executor(self.registry)
         self.responder = Responder(

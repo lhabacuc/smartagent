@@ -71,6 +71,11 @@ class AgentCoreTests(unittest.TestCase):
             retries=2,
         )
 
+    def test_default_run_shell_tool_is_registered(self):
+        with patch("agent.core.agent.get_llm_client", return_value=DummyLLMNoTool()):
+            agent = Agent(model="groq")
+        self.assertIn("run_shell", agent.registry.get_tools_list())
+
     def test_process_executes_registered_tool(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMToolCall()):
             agent = Agent(model="groq")
@@ -134,6 +139,7 @@ class AgentCoreTests(unittest.TestCase):
     def test_process_without_tools_skips_analyzer_json_contract(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMPlainText()):
             agent = Agent(model="groq")
+            self.assertTrue(agent.disable_tool("run_shell"))
             result = agent.process("olá")
 
         self.assertEqual(result["final_response"], "resposta direta")
@@ -171,7 +177,7 @@ class AgentCoreTests(unittest.TestCase):
             after_reset = agent.registry.get_tools_list()
 
         self.assertIn("ping", before_reset)
-        self.assertEqual(after_reset, [])
+        self.assertEqual(after_reset, ["run_shell"])
         self.assertTrue(agent.responder.enable_history)
 
     def test_registry_list_tools_returns_mapping(self):
