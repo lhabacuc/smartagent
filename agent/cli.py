@@ -60,11 +60,48 @@ def run_interactive(agent) -> None:
     signal.signal(signal.SIGINT, signal_handler)
     print("=== Modo Interativo do Agente ===")
     print("Digite 'sair' para encerrar.")
+
+    def handle_command(command: str) -> bool:
+        command = command.strip()
+        if not command.startswith("/"):
+            return False
+
+        parts = command[1:].split()
+        name = (parts[0].lower() if parts else "")
+
+        if name in {"clear", "cls"}:
+            agent.clear_history()
+            print("Histórico limpo.")
+            return True
+        if name in {"help", "h"}:
+            print("Comandos disponíveis: /clear, /help, /tools, /exit")
+            return True
+        if name == "tools":
+            tools = agent.registry.get_tools_list()
+            if tools:
+                print("Ferramentas:", ", ".join(tools))
+            else:
+                print("Nenhuma ferramenta registrada.")
+            return True
+        if name in {"exit", "quit"}:
+            print("Encerrando o agente. Até logo!")
+            raise SystemExit(0)
+
+        print(f"Comando desconhecido: /{name or ''}")
+        print("Use /help para listar comandos.")
+        return True
+
     while True:
         user_input = input("\n[your input]>>: ")
         if is_exit_command(user_input):
             print("Encerrando o agente. Até logo!")
             break
+        if user_input.strip().startswith("/"):
+            try:
+                if handle_command(user_input):
+                    continue
+            except SystemExit:
+                break
         response = agent.chat(user_input)
         print(f"Agente: {response}")
 

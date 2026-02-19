@@ -1,7 +1,7 @@
 import io
 import unittest
 from contextlib import redirect_stdout
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from agent import cli
 
@@ -52,6 +52,19 @@ class CLITests(unittest.TestCase):
             code = cli.main(["run-example", "minimal_agent"])
         self.assertEqual(code, 0)
         mocked_run.assert_called_once()
+
+    def test_interactive_slash_command_clear_is_not_sent_to_chat(self):
+        fake_agent = Mock()
+        fake_agent.clear_history = Mock()
+        fake_agent.chat = Mock(return_value="ok")
+        fake_agent.registry.get_tools_list.return_value = []
+
+        out = io.StringIO()
+        with patch("builtins.input", side_effect=["/clear", "sair"]), redirect_stdout(out):
+            cli.run_interactive(fake_agent)
+
+        fake_agent.clear_history.assert_called_once()
+        fake_agent.chat.assert_not_called()
 
 
 if __name__ == "__main__":
