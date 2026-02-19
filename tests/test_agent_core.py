@@ -5,7 +5,6 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from agent.core.agent import Agent
-from agent.core.exceptions import AnalysisError
 from agent.core.registry import ToolRegistry
 
 
@@ -125,7 +124,7 @@ class AgentCoreTests(unittest.TestCase):
         self.assertFalse(result["execution_data"]["call_results"][0]["ok"])
         self.assertIn("missing a required argument", result["execution_data"]["call_results"][0]["error"])
 
-    def test_analyzer_requires_strict_json(self):
+    def test_analyzer_non_json_falls_back_to_direct_response(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMNonJsonAnalysis()):
             agent = Agent(model="groq")
 
@@ -133,8 +132,12 @@ class AgentCoreTests(unittest.TestCase):
             def ping():
                 return "pong"
 
-            with self.assertRaises(AnalysisError):
-                agent.process("qualquer coisa")
+            result = agent.process("qualquer coisa")
+
+        self.assertEqual(result["final_response"], "ok")
+        self.assertEqual(result["executed_tools"], [])
+        self.assertTrue(result["execution_data"]["success"])
+        self.assertIn("Analyzer fallback", result["analysis"]["reason"])
 
     def test_process_without_tools_skips_analyzer_json_contract(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMPlainText()):
