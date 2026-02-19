@@ -77,28 +77,46 @@ class Agent:
     
     def process(self, user_prompt: str) -> Dict[str, Any]:
         """Processa prompt completo em 3 fases"""
-        
-        # Fase 1: Análise
+
         tools_desc = self.registry.get_tools_description()
-        analysis = self.analyzer.analyze(user_prompt, tools_desc)
-        
-        # Fase 2: Execução
-        if analysis.get('isValid', False):
-            tool_calls = analysis.get("tool_calls")
-            if tool_calls is None:
-                # Compatibilidade com formato antigo de análise
-                legacy_tools = analysis.get("tool_using_exec", [])
-                legacy_args = analysis.get("data_using_util", {})
-                tool_calls = [{"name": t, "args": legacy_args} for t in legacy_tools]
-            execution_data = self.executor.execute(tool_calls)
-        else:
+
+        # Quando não há ferramentas registradas, evita análise JSON estrita.
+        if not tools_desc.strip():
+            analysis = {
+                "isValid": True,
+                "tool_calls": [],
+                "tool_using_exec": [],
+                "data_using_util": {},
+                "reason": "No tools registered; direct response mode.",
+            }
             execution_data = {
                 'executed_tools': [],
                 'used_data': {},
                 'results': {},
                 'call_results': [],
-                'success': False,
+                'success': True,
             }
+        else:
+            # Fase 1: Análise
+            analysis = self.analyzer.analyze(user_prompt, tools_desc)
+
+            # Fase 2: Execução
+            if analysis.get('isValid', False):
+                tool_calls = analysis.get("tool_calls")
+                if tool_calls is None:
+                    # Compatibilidade com formato antigo de análise
+                    legacy_tools = analysis.get("tool_using_exec", [])
+                    legacy_args = analysis.get("data_using_util", {})
+                    tool_calls = [{"name": t, "args": legacy_args} for t in legacy_tools]
+                execution_data = self.executor.execute(tool_calls)
+            else:
+                execution_data = {
+                    'executed_tools': [],
+                    'used_data': {},
+                    'results': {},
+                    'call_results': [],
+                    'success': False,
+                }
         
         # Fase 3: Resposta
         final_response = self.responder.respond(user_prompt, execution_data)

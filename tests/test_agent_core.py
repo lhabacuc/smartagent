@@ -52,6 +52,11 @@ class DummyLLMNonJsonAnalysis:
         return "ok"
 
 
+class DummyLLMPlainText:
+    def chat(self, system_prompt: str, user_prompt: str) -> str:
+        return "resposta direta"
+
+
 class AgentCoreTests(unittest.TestCase):
     def test_provider_argument_overrides_env_and_model(self):
         with patch("agent.core.agent.get_llm_client") as mocked_factory:
@@ -100,8 +105,23 @@ class AgentCoreTests(unittest.TestCase):
     def test_analyzer_requires_strict_json(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMNonJsonAnalysis()):
             agent = Agent(model="groq")
+
+            @agent.tool
+            def ping():
+                return "pong"
+
             with self.assertRaises(AnalysisError):
                 agent.process("qualquer coisa")
+
+    def test_process_without_tools_skips_analyzer_json_contract(self):
+        with patch("agent.core.agent.get_llm_client", return_value=DummyLLMPlainText()):
+            agent = Agent(model="groq")
+            result = agent.process("olá")
+
+        self.assertEqual(result["final_response"], "resposta direta")
+        self.assertEqual(result["executed_tools"], [])
+        self.assertTrue(result["execution_data"]["success"])
+        self.assertEqual(result["analysis"]["tool_calls"], [])
 
     def test_chat_history_does_not_duplicate_entries(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMNoTool()):
