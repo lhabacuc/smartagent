@@ -38,6 +38,14 @@ agent = Agent(provider="groq")
 print("✅ SmartAgent instalado com sucesso!")
 ```
 
+Você também pode validar via CLI:
+
+```bash
+smartagent --help
+smartagent env-check
+smartagent doctor --provider groq
+```
+
 ## Configuração de API Keys
 
 Configure as chaves de API como variáveis de ambiente:

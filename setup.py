@@ -48,4 +48,9 @@ setup(
             'requests'
         ],
     },
+    entry_points={
+        "console_scripts": [
+            "smartagent=agent.cli:main",
+        ]
+    },
 )

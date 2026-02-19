@@ -132,3 +132,19 @@ O analyzer trabalha com `tool_calls`:
 ## Exemplo Completo
 
 Veja `examples/minimal_agent.py`
+
+## CLI Oficial
+
+Após instalar o pacote, o comando `smartagent` fica disponível:
+
+```bash
+smartagent --help
+```
+
+Subcomandos:
+
+- `smartagent env-check`: mostra variáveis de ambiente relevantes
+- `smartagent doctor --provider openai`: valida configuração local
+- `smartagent chat --provider groq`: inicia chat interativo
+- `smartagent chat --provider groq --prompt "Olá"`: executa prompt único
+- `smartagent run-example --list`: lista exemplos locais

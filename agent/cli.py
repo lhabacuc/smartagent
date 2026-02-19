@@ -1,5 +1,14 @@
+import argparse
+import os
 import signal
+import subprocess
 import sys
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from .core.config import AgentConfig
+from .integrations import normalize_provider
+from .integrations.config import resolve_api_key, resolve_model
 
 
 def show_env_help() -> None:
@@ -58,3 +67,206 @@ def run_interactive(agent) -> None:
             break
         response = agent.chat(user_input)
         print(f"Agente: {response}")
+
+
+_PROVIDER_API_ENV: Dict[str, str] = {
+    "groq": "GROQ_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "grok": "XAI_API_KEY",
+    "llama": "LLAMA_API_KEY",
+}
+
+
+def _mask_secret(value: str) -> str:
+    if len(value) <= 4:
+        return "*" * len(value)
+    return f"{value[:2]}***{value[-2:]}"
+
+
+def _show_env_check() -> int:
+    vars_to_check = [
+        "SMARTAGENT_PROVIDER",
+        "SMARTAGENT_MODEL",
+        "SMARTAGENT_API_KEY",
+        "SMARTAGENT_TIMEOUT",
+        "SMARTAGENT_RETRIES",
+        "GROQ_API_KEY",
+        "OPENAI_API_KEY",
+        "GEMINI_API_KEY",
+        "XAI_API_KEY",
+        "LLAMA_API_KEY",
+        "LLM",
+    ]
+    print("=== smartagent env-check ===")
+    for name in vars_to_check:
+        value = os.getenv(name)
+        if value:
+            display = _mask_secret(value) if "KEY" in name else value
+            print(f"{name}: SET ({display})")
+        else:
+            print(f"{name}: UNSET")
+    return 0
+
+
+def _resolve_provider(provider: Optional[str]) -> str:
+    raw = provider or os.getenv("SMARTAGENT_PROVIDER") or "groq"
+    return normalize_provider(raw)
+
+
+def _show_doctor(
+    provider: Optional[str],
+    model: Optional[str],
+    timeout: Optional[float],
+    retries: Optional[int],
+    api_key: Optional[str],
+) -> int:
+    print("=== smartagent doctor ===")
+    try:
+        provider_name = _resolve_provider(provider)
+        cfg = AgentConfig.from_inputs(
+            provider=provider_name,
+            model=model,
+            api_key=api_key,
+            timeout=timeout,
+            retries=retries,
+        )
+    except Exception as exc:
+        print(f"ERRO de configuração: {exc}")
+        return 1
+
+    legacy_env = _PROVIDER_API_ENV.get(provider_name, "")
+    effective_api_key = resolve_api_key(provider_name, cfg.api_key, legacy_env) if legacy_env else cfg.api_key
+    effective_model = cfg.model or resolve_model(provider_name, default_model="(default interno do provider)")
+
+    print(f"provider: {provider_name}")
+    print(f"model: {effective_model}")
+    print(f"timeout: {cfg.timeout}")
+    print(f"retries: {cfg.retries}")
+    if provider_name == "ollama":
+        print("api_key: N/A (ollama local)")
+        print("status: OK")
+        return 0
+    if effective_api_key:
+        print("api_key: OK")
+        print("status: OK")
+        return 0
+
+    hint = legacy_env or "SMARTAGENT_API_KEY"
+    print(f"api_key: AUSENTE (defina {hint} ou SMARTAGENT_API_KEY)")
+    print("status: ATENCAO")
+    return 2
+
+
+def _list_examples(example_dir: Path) -> List[str]:
+    if not example_dir.exists():
+        return []
+    return sorted(p.stem for p in example_dir.glob("*.py") if not p.name.startswith("_"))
+
+
+def _run_example(example: str, extra_args: List[str]) -> int:
+    root_dir = Path(__file__).resolve().parent.parent
+    example_dir = root_dir / "examples"
+    available = _list_examples(example_dir)
+    if example not in available:
+        print(f"Exemplo '{example}' não encontrado.")
+        if available:
+            print("Disponíveis:", ", ".join(available))
+        return 1
+
+    script_path = example_dir / f"{example}.py"
+    cmd = [sys.executable, str(script_path)]
+    if extra_args:
+        cmd.extend(extra_args)
+    print(f"Executando: {' '.join(cmd)}")
+    completed = subprocess.run(cmd, check=False)
+    return completed.returncode
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="smartagent",
+        description="CLI oficial do SmartAgent",
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    env_parser = subparsers.add_parser("env-check", help="Valida variáveis de ambiente do SmartAgent")
+    env_parser.set_defaults(func=lambda _args: _show_env_check())
+
+    doctor_parser = subparsers.add_parser("doctor", help="Diagnostica configuração de provider/modelo")
+    doctor_parser.add_argument("--provider", help="Provider (groq, openai, gemini, grok, ollama, llama)")
+    doctor_parser.add_argument("--model", help="Modelo opcional")
+    doctor_parser.add_argument("--api-key", help="API key opcional")
+    doctor_parser.add_argument("--timeout", type=float, help="Timeout HTTP (segundos)")
+    doctor_parser.add_argument("--retries", type=int, help="Retries HTTP")
+    doctor_parser.set_defaults(
+        func=lambda args: _show_doctor(
+            provider=args.provider,
+            model=args.model,
+            timeout=args.timeout,
+            retries=args.retries,
+            api_key=args.api_key,
+        )
+    )
+
+    chat_parser = subparsers.add_parser("chat", help="Inicia chat (prompt único ou interativo)")
+    chat_parser.add_argument("--provider", help="Provider (default: SMARTAGENT_PROVIDER ou groq)")
+    chat_parser.add_argument("--model", help="Modelo opcional")
+    chat_parser.add_argument("--api-key", help="API key opcional")
+    chat_parser.add_argument("--info", default="", help="Instruções de sistema")
+    chat_parser.add_argument("--history", action="store_true", help="Ativa histórico")
+    chat_parser.add_argument("--history-limit", type=int, default=20, help="Limite de histórico")
+    chat_parser.add_argument("--prompt", help="Executa um prompt único")
+    chat_parser.set_defaults(func=_chat_command)
+
+    run_example_parser = subparsers.add_parser("run-example", help="Executa exemplos locais do projeto")
+    run_example_parser.add_argument("example", nargs="?", help="Nome do exemplo (sem .py)")
+    run_example_parser.add_argument("--list", action="store_true", help="Lista exemplos disponíveis")
+    run_example_parser.add_argument("extra_args", nargs=argparse.REMAINDER, help="Args extras para o script")
+    run_example_parser.set_defaults(func=_run_example_command)
+
+    return parser
+
+
+def _chat_command(args: argparse.Namespace) -> int:
+    from .core.agent import Agent
+
+    agent = Agent(
+        provider=args.provider,
+        model=args.model,
+        api_key=args.api_key,
+        info=args.info,
+        enable_history=args.history,
+        history_limit=args.history_limit,
+    )
+    if args.prompt:
+        print(agent.chat(args.prompt))
+        return 0
+    run_interactive(agent)
+    return 0
+
+
+def _run_example_command(args: argparse.Namespace) -> int:
+    root_dir = Path(__file__).resolve().parent.parent
+    example_dir = root_dir / "examples"
+    available = _list_examples(example_dir)
+
+    if args.list or not args.example:
+        print("Exemplos disponíveis:")
+        for name in available:
+            print(f"- {name}")
+        return 0 if available else 1
+    return _run_example(args.example, args.extra_args)
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    if not getattr(args, "command", None):
+        parser.print_help()
+        return 0
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
