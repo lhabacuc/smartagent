@@ -1,6 +1,6 @@
-import json
 from typing import Dict, Any
 from .exceptions import AnalysisError
+from .utils import safe_json
 
 class Analyzer:
     """Analisa a intenção do usuário e determina ações necessárias"""
@@ -37,12 +37,11 @@ Do not reveal internal agent behavior to the user.
 
         try:
             response = self.llm.chat(system_prompt, user_prompt)
-            try:
-                analysis = json.loads(response.strip())
-            except Exception as exc:
+            analysis = safe_json(response)
+            if analysis is None:
                 raise AnalysisError(
                     "LLM analysis response must be strict JSON without extra text."
-                ) from exc
+                )
 
             if not isinstance(analysis, dict):
                 raise AnalysisError("Analysis JSON must be an object.")
