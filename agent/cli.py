@@ -3,6 +3,7 @@ import os
 import signal
 import subprocess
 import sys
+import readline
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -87,14 +88,45 @@ def run_interactive(agent) -> None:
             terminal_clear()
             return True
         if name in {"help", "h"}:
-            print("Comandos disponíveis: /clear, /cl, /exec, /help, /tools, /exit")
+            print("Comandos disponíveis: /clear, /cl, /exec, /enable, /disable, /help, /tools, /exit")
             return True
         if name == "tools":
             tools = agent.registry.get_tools_list()
             if tools:
-                print("Ferramentas:", ", ".join(tools))
+                disabled = set(agent.get_disabled_tools()) if hasattr(agent, "get_disabled_tools") else set()
+                labeled = []
+                for tool_name in tools:
+                    status = "off" if tool_name in disabled else "on"
+                    labeled.append(f"{tool_name}({status})")
+                print("Ferramentas:", ", ".join(labeled))
             else:
                 print("Nenhuma ferramenta registrada.")
+            return True
+        if name in {"disable", "desativar"}:
+            if len(parts) < 2:
+                print("Uso: /disable <nome_da_funcao>")
+                return True
+            tool_name = parts[1]
+            if not hasattr(agent, "disable_tool"):
+                print("Operação não suportada neste agente.")
+                return True
+            if agent.disable_tool(tool_name):
+                print(f"Ferramenta desativada: {tool_name}")
+            else:
+                print(f"Ferramenta não encontrada: {tool_name}")
+            return True
+        if name in {"enable", "ativar"}:
+            if len(parts) < 2:
+                print("Uso: /enable <nome_da_funcao>")
+                return True
+            tool_name = parts[1]
+            if not hasattr(agent, "enable_tool"):
+                print("Operação não suportada neste agente.")
+                return True
+            if agent.enable_tool(tool_name):
+                print(f"Ferramenta ativada: {tool_name}")
+            else:
+                print(f"Ferramenta já ativa ou desconhecida: {tool_name}")
             return True
         if name == "exec":
             raw_exec = command[len("/exec"):].strip()

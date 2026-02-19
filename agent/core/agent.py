@@ -56,6 +56,7 @@ class Agent:
         self.enable_history = self.config.enable_history
         self.history_limit = self.config.history_limit
         self.history = []
+        self._disabled_tools = set()
         self.analyzer = Analyzer(self.llm_client, info=self.info)
         self.executor = Executor(self.registry)
         self.responder = Responder(
@@ -108,7 +109,28 @@ class Agent:
                     legacy_tools = analysis.get("tool_using_exec", [])
                     legacy_args = analysis.get("data_using_util", {})
                     tool_calls = [{"name": t, "args": legacy_args} for t in legacy_tools]
-                execution_data = self.executor.execute(tool_calls)
+
+                allowed_calls = []
+                blocked_results = []
+                for call in tool_calls:
+                    name = call.get("name") if isinstance(call, dict) else None
+                    if isinstance(name, str) and name in self._disabled_tools:
+                        blocked_results.append(
+                            {
+                                "name": name,
+                                "args": call.get("args", {}),
+                                "ok": False,
+                                "result": None,
+                                "error": f"Ferramenta '{name}' está desativada.",
+                            }
+                        )
+                    else:
+                        allowed_calls.append(call)
+
+                execution_data = self.executor.execute(allowed_calls)
+                if blocked_results:
+                    execution_data["call_results"].extend(blocked_results)
+                    execution_data["success"] = all(r["ok"] for r in execution_data["call_results"])
             else:
                 execution_data = {
                     'executed_tools': [],
@@ -145,6 +167,28 @@ class Agent:
     def clear_history(self):
         """Limpa o histórico de interações."""
         self.history = []
+
+    def disable_tool(self, name: str) -> bool:
+        """Desativa uma ferramenta registrada para novas execuções."""
+        if name in self.registry.list_tools():
+            self._disabled_tools.add(name)
+            return True
+        return False
+
+    def enable_tool(self, name: str) -> bool:
+        """Reativa uma ferramenta previamente desativada."""
+        if name in self._disabled_tools:
+            self._disabled_tools.remove(name)
+            return True
+        return False
+
+    def is_tool_enabled(self, name: str) -> bool:
+        """Retorna se uma ferramenta está ativa."""
+        return name not in self._disabled_tools
+
+    def get_disabled_tools(self) -> list:
+        """Lista ferramentas atualmente desativadas."""
+        return sorted(self._disabled_tools)
         
     
     def chat(self, prompt: str) -> str:
@@ -199,6 +243,7 @@ class Agent:
     def reset(self):
         """Reseta o agente"""
         self.registry = ToolRegistry()
+        self._disabled_tools = set()
         self.analyzer = Analyzer(self.llm_client, info=self.info)
         self.executor = Executor(self.registry)
         self.responder = Responder(

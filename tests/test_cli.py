@@ -107,6 +107,20 @@ class CLITests(unittest.TestCase):
         self.assertIn("[exit_code=0]", out.getvalue())
         fake_agent.chat.assert_not_called()
 
+    def test_interactive_disable_command_calls_agent_method(self):
+        fake_agent = Mock()
+        fake_agent.chat = Mock(return_value="ok")
+        fake_agent.disable_tool = Mock(return_value=True)
+        fake_agent.get_disabled_tools = Mock(return_value=["somar"])
+        fake_agent.registry.get_tools_list.return_value = ["somar"]
+
+        out = io.StringIO()
+        with patch("builtins.input", side_effect=["/disable somar", "sair"]), redirect_stdout(out):
+            cli.run_interactive(fake_agent)
+
+        fake_agent.disable_tool.assert_called_once_with("somar")
+        fake_agent.chat.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

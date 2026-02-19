@@ -86,6 +86,24 @@ class AgentCoreTests(unittest.TestCase):
         self.assertEqual(result["execution_data"]["results"]["somar"], 5)
         self.assertEqual(result["final_response"], "resposta final")
 
+    def test_process_skips_disabled_tool_execution(self):
+        with patch("agent.core.agent.get_llm_client", return_value=DummyLLMToolCall()):
+            agent = Agent(model="groq")
+
+            @agent.tool
+            def somar(a=0, b=0):
+                return a + b
+
+            self.assertTrue(agent.disable_tool("somar"))
+            result = agent.process("soma para mim")
+
+        self.assertEqual(result["executed_tools"], [])
+        self.assertFalse(result["execution_data"]["success"])
+        self.assertEqual(len(result["execution_data"]["call_results"]), 1)
+        self.assertIn("desativada", result["execution_data"]["call_results"][0]["error"])
+        self.assertTrue(agent.enable_tool("somar"))
+        self.assertTrue(agent.is_tool_enabled("somar"))
+
     def test_process_reports_invalid_tool_args(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMInvalidArgs()):
             agent = Agent(model="groq")
