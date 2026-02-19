@@ -121,6 +121,12 @@ class CLITests(unittest.TestCase):
         fake_agent.disable_tool.assert_called_once_with("somar")
         fake_agent.chat.assert_not_called()
 
+    def test_print_agent_response_plain_mode(self):
+        out = io.StringIO()
+        with patch.object(cli.sys, "stdout", out):
+            cli._print_agent_response("teste")
+        self.assertIn("Agente: teste", out.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
