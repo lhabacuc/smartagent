@@ -47,7 +47,7 @@ class DummyLLMInvalidArgs:
 class DummyLLMNonJsonAnalysis:
     def chat(self, system_prompt: str, user_prompt: str) -> str:
         if "tool_calls" in system_prompt:
-            return "```json {\"isValid\": true} ```"
+            return "não-json"
         return "ok"
 
 
