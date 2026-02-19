@@ -66,6 +66,47 @@ class CLITests(unittest.TestCase):
         fake_agent.clear_history.assert_called_once()
         fake_agent.chat.assert_not_called()
 
+    def test_interactive_slash_command_cl_clears_terminal(self):
+        fake_agent = Mock()
+        fake_agent.chat = Mock(return_value="ok")
+        fake_agent.registry.get_tools_list.return_value = []
+
+        out = io.StringIO()
+        with patch("agent.cli.subprocess.run") as mocked_run:
+            with patch("builtins.input", side_effect=["/cl", "sair"]), redirect_stdout(out):
+                cli.run_interactive(fake_agent)
+
+        mocked_run.assert_called_once()
+        called_args = mocked_run.call_args.args[0]
+        self.assertIn(called_args[0], {"clear", "cls"})
+        fake_agent.chat.assert_not_called()
+
+    def test_interactive_slash_command_exec_runs_shell(self):
+        fake_agent = Mock()
+        fake_agent.chat = Mock(return_value="ok")
+        fake_agent.registry.get_tools_list.return_value = []
+
+        completed = Mock()
+        completed.stdout = "hello\n"
+        completed.stderr = ""
+        completed.returncode = 0
+
+        out = io.StringIO()
+        with patch("agent.cli.subprocess.run", return_value=completed) as mocked_run:
+            with patch("builtins.input", side_effect=['/exec "echo hello"', "sair"]), redirect_stdout(out):
+                cli.run_interactive(fake_agent)
+
+        mocked_run.assert_called_once_with(
+            "echo hello",
+            shell=True,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertIn("hello", out.getvalue())
+        self.assertIn("[exit_code=0]", out.getvalue())
+        fake_agent.chat.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

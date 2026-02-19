@@ -61,6 +61,16 @@ def run_interactive(agent) -> None:
     print("=== Modo Interativo do Agente ===")
     print("Digite 'sair' para encerrar.")
 
+    def terminal_clear() -> None:
+        cmd = ["cls"] if os.name == "nt" else ["clear"]
+        subprocess.run(cmd, check=False)
+
+    def normalize_exec_arg(raw: str) -> str:
+        value = raw.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            return value[1:-1].strip()
+        return value
+
     def handle_command(command: str) -> bool:
         command = command.strip()
         if not command.startswith("/"):
@@ -73,8 +83,11 @@ def run_interactive(agent) -> None:
             agent.clear_history()
             print("Histórico limpo.")
             return True
+        if name == "cl":
+            terminal_clear()
+            return True
         if name in {"help", "h"}:
-            print("Comandos disponíveis: /clear, /help, /tools, /exit")
+            print("Comandos disponíveis: /clear, /cl, /exec, /help, /tools, /exit")
             return True
         if name == "tools":
             tools = agent.registry.get_tools_list()
@@ -82,6 +95,25 @@ def run_interactive(agent) -> None:
                 print("Ferramentas:", ", ".join(tools))
             else:
                 print("Nenhuma ferramenta registrada.")
+            return True
+        if name == "exec":
+            raw_exec = command[len("/exec"):].strip()
+            exec_cmd = normalize_exec_arg(raw_exec)
+            if not exec_cmd:
+                print("Uso: /exec \"comando\"")
+                return True
+            completed = subprocess.run(
+                exec_cmd,
+                shell=True,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if completed.stdout:
+                print(completed.stdout.rstrip())
+            if completed.stderr:
+                print(completed.stderr.rstrip())
+            print(f"[exit_code={completed.returncode}]")
             return True
         if name in {"exit", "quit"}:
             print("Encerrando o agente. Até logo!")
