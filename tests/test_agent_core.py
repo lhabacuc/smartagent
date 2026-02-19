@@ -51,6 +51,23 @@ class DummyLLMNonJsonAnalysis:
         return "ok"
 
 
+class DummyLLMThinkWrappedToolCall:
+    def chat(self, system_prompt: str, user_prompt: str) -> str:
+        if "tool_calls" in system_prompt:
+            return (
+                "<think>thinking</think>\n"
+                "{\"isValid\": true, \"tool_calls\": [{\"name\": \"somar\", \"args\": {\"a\": 2, \"b\": 3}}]}"
+            )
+        return "resposta final"
+
+
+class DummyLLMRespondWithThink:
+    def chat(self, system_prompt: str, user_prompt: str) -> str:
+        if "tool_calls" in system_prompt:
+            return "{\"isValid\": true, \"tool_calls\": []}"
+        return "<think>hidden reasoning</think>\nResposta limpa"
+
+
 class DummyLLMPlainText:
     def chat(self, system_prompt: str, user_prompt: str) -> str:
         return "resposta direta"
@@ -108,6 +125,19 @@ class AgentCoreTests(unittest.TestCase):
         self.assertTrue(agent.enable_tool("somar"))
         self.assertTrue(agent.is_tool_enabled("somar"))
 
+    def test_analyzer_accepts_think_wrapped_json_for_tools(self):
+        with patch("agent.core.agent.get_llm_client", return_value=DummyLLMThinkWrappedToolCall()):
+            agent = Agent(model="groq")
+
+            @agent.tool
+            def somar(a=0, b=0):
+                return a + b
+
+            result = agent.process("soma para mim")
+
+        self.assertEqual(result["executed_tools"], ["somar"])
+        self.assertEqual(result["execution_data"]["results"]["somar"], 5)
+
     def test_process_reports_invalid_tool_args(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMInvalidArgs()):
             agent = Agent(model="groq")
@@ -149,6 +179,13 @@ class AgentCoreTests(unittest.TestCase):
         self.assertEqual(result["executed_tools"], [])
         self.assertTrue(result["execution_data"]["success"])
         self.assertEqual(result["analysis"]["tool_calls"], [])
+
+    def test_responder_strips_think_blocks_from_final_output(self):
+        with patch("agent.core.agent.get_llm_client", return_value=DummyLLMRespondWithThink()):
+            agent = Agent(model="groq")
+            self.assertTrue(agent.disable_tool("run_shell"))
+            answer = agent.chat("oi")
+        self.assertEqual(answer, "Resposta limpa")
 
     def test_chat_history_does_not_duplicate_entries(self):
         with patch("agent.core.agent.get_llm_client", return_value=DummyLLMNoTool()):
