@@ -59,6 +59,44 @@ class CLITests(unittest.TestCase):
                 code = cli.main(["doctor", "--provider", "openai"])
         self.assertEqual(code, 2)
         self.assertIn("api_key: AUSENTE", out.getvalue())
+        self.assertIn("api_key_source: missing", out.getvalue())
+
+    def test_doctor_rejects_invalid_provider(self):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            code = cli.main(["doctor", "--provider", "nao-existe"])
+        self.assertEqual(code, 1)
+        self.assertIn("provider inválido 'nao-existe'", out.getvalue())
+        self.assertIn("Providers suportados:", out.getvalue())
+
+    def test_doctor_accepts_xai_alias(self):
+        out = io.StringIO()
+        with patch.dict("os.environ", {"XAI_API_KEY": "x-test-key"}, clear=True):
+            with redirect_stdout(out):
+                code = cli.main(["doctor", "--provider", "xai"])
+        self.assertEqual(code, 0)
+        self.assertIn("provider_input: xai", out.getvalue())
+        self.assertIn("provider: grok", out.getvalue())
+        self.assertIn("api_key_source: env:XAI_API_KEY", out.getvalue())
+
+    def test_doctor_accepts_google_gemini_alias(self):
+        out = io.StringIO()
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "g-test-key"}, clear=True):
+            with redirect_stdout(out):
+                code = cli.main(["doctor", "--provider", "google-gemini"])
+        self.assertEqual(code, 0)
+        self.assertIn("provider_input: google-gemini", out.getvalue())
+        self.assertIn("provider: gemini", out.getvalue())
+        self.assertIn("api_key_source: env:GEMINI_API_KEY", out.getvalue())
+
+    def test_doctor_shows_effective_model_from_env(self):
+        out = io.StringIO()
+        with patch.dict("os.environ", {"SMARTAGENT_MODEL": "gpt-4.1-mini", "OPENAI_API_KEY": "o-key"}, clear=True):
+            with redirect_stdout(out):
+                code = cli.main(["doctor", "--provider", "openai"])
+        self.assertEqual(code, 0)
+        self.assertIn("model: gpt-4.1-mini", out.getvalue())
+        self.assertIn("model_source: env:SMARTAGENT_MODEL", out.getvalue())
 
     def test_run_example_list(self):
         out = io.StringIO()
