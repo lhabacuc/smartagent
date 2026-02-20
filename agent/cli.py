@@ -1,4 +1,5 @@
 import argparse
+import importlib.util
 import os
 import signal
 import subprocess
@@ -6,7 +7,8 @@ import sys
 import time
 import readline
 from pathlib import Path
-from typing import Dict, List, Optional
+from types import ModuleType
+from typing import Callable, Dict, List, Optional
 
 from .core.config import AgentConfig
 from .integrations import normalize_provider
@@ -302,6 +304,72 @@ def _run_example(example: str, extra_args: List[str]) -> int:
     return completed.returncode
 
 
+def _collect_tools_from_module(module: ModuleType) -> List[Callable]:
+    tools_attr = getattr(module, "TOOLS", None)
+    if tools_attr is not None:
+        if not isinstance(tools_attr, (list, tuple, set)):
+            raise ValueError("Atributo TOOLS deve ser list/tuple/set com funções ou nomes de funções.")
+        collected = []
+        for item in tools_attr:
+            candidate = item
+            if isinstance(item, str):
+                if not hasattr(module, item):
+                    raise ValueError(f"TOOLS referencia função inexistente: '{item}'.")
+                candidate = getattr(module, item)
+            if not callable(candidate):
+                raise ValueError("TOOLS deve conter apenas funções (ou nomes de funções).")
+            collected.append(candidate)
+        return collected
+
+    collected = []
+    for name, obj in vars(module).items():
+        if name.startswith("_") or name in {"register_tools", "TOOLS"}:
+            continue
+        if callable(obj) and getattr(obj, "__module__", "") == module.__name__:
+            collected.append(obj)
+    return collected
+
+
+def _load_tools_from_file(agent, tools_file: str) -> List[str]:
+    file_path = Path(tools_file).expanduser()
+    if not file_path.exists():
+        raise ValueError(f"Arquivo de tools não encontrado: {file_path}")
+    if not file_path.is_file():
+        raise ValueError(f"Caminho de tools inválido (não é arquivo): {file_path}")
+
+    spec = importlib.util.spec_from_file_location("smartagent_cli_user_tools", str(file_path))
+    if spec is None or spec.loader is None:
+        raise ValueError(f"Não foi possível carregar o módulo de tools: {file_path}")
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        raise ValueError(f"Falha ao importar módulo de tools '{file_path}': {exc}") from exc
+
+    before = set(agent.registry.get_tools_list())
+    register_tools = getattr(module, "register_tools", None)
+    if register_tools is not None:
+        if not callable(register_tools):
+            raise ValueError("register_tools deve ser uma função: register_tools(agent).")
+        try:
+            register_tools(agent)
+        except Exception as exc:
+            raise ValueError(f"Falha em register_tools(agent): {exc}") from exc
+
+    module_tools = _collect_tools_from_module(module)
+    for func in module_tools:
+        agent.tool(func)
+
+    after = set(agent.registry.get_tools_list())
+    loaded = sorted(after - before)
+    if not loaded:
+        raise ValueError(
+            "Nenhuma tool carregada do módulo externo. "
+            "Defina funções públicas, TOOLS=[...], ou register_tools(agent)."
+        )
+    return loaded
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="smartagent",
@@ -336,6 +404,7 @@ def _build_parser() -> argparse.ArgumentParser:
     chat_parser.add_argument("--history", action="store_true", help="Ativa histórico")
     chat_parser.add_argument("--history-limit", type=int, default=20, help="Limite de histórico")
     chat_parser.add_argument("--prompt", help="Executa um prompt único")
+    chat_parser.add_argument("--tools-file", help="Arquivo Python com tools externas para registrar no agente")
     chat_parser.set_defaults(func=_chat_command)
 
     run_example_parser = subparsers.add_parser("run-example", help="Executa exemplos locais do projeto")
@@ -358,6 +427,13 @@ def _chat_command(args: argparse.Namespace) -> int:
         enable_history=args.history,
         history_limit=args.history_limit,
     )
+    if args.tools_file:
+        try:
+            loaded_tools = _load_tools_from_file(agent, args.tools_file)
+        except ValueError as exc:
+            print(f"Erro ao carregar tools externas: {exc}")
+            return 1
+        print(f"Tools externas carregadas: {', '.join(loaded_tools)}")
     if args.prompt:
         print(agent.chat(args.prompt))
         return 0
