@@ -1,9 +1,32 @@
 import io
+import tempfile
+import textwrap
 import unittest
 from contextlib import redirect_stdout
 from unittest.mock import Mock, patch
 
 from agent import cli
+from agent.core.registry import ToolRegistry
+
+
+class DummyAgent:
+    last_instance = None
+
+    def __init__(self, **_kwargs):
+        self.registry = ToolRegistry()
+        DummyAgent.last_instance = self
+
+    def tool(self, func=None, name=None):
+        def decorator(f):
+            self.registry.register(f, name)
+            return f
+
+        if func is None:
+            return decorator
+        return decorator(func)
+
+    def chat(self, _prompt):
+        return "ok"
 
 
 class CLITests(unittest.TestCase):
@@ -126,6 +149,50 @@ class CLITests(unittest.TestCase):
         with patch.object(cli.sys, "stdout", out):
             cli._print_agent_response("teste")
         self.assertIn("Agente: teste", out.getvalue())
+
+    def test_chat_tools_file_registers_public_functions(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tools_path = f"{tmpdir}/tools_ok.py"
+            with open(tools_path, "w", encoding="utf-8") as fh:
+                fh.write(
+                    textwrap.dedent(
+                        """
+                        def somar(a: int, b: int):
+                            return a + b
+                        """
+                    ).strip()
+                )
+
+            out = io.StringIO()
+            with patch("agent.core.agent.Agent", DummyAgent), redirect_stdout(out):
+                code = cli.main(["chat", "--prompt", "oi", "--tools-file", tools_path])
+
+        self.assertEqual(code, 0)
+        self.assertIn("Tools externas carregadas: somar", out.getvalue())
+        self.assertIn("somar", DummyAgent.last_instance.registry.get_tools_list())
+
+    def test_chat_tools_file_missing_path_returns_error(self):
+        out = io.StringIO()
+        with patch("agent.core.agent.Agent", DummyAgent), redirect_stdout(out):
+            code = cli.main(["chat", "--prompt", "oi", "--tools-file", "inexistente_tools.py"])
+
+        self.assertEqual(code, 1)
+        self.assertIn("Erro ao carregar tools externas", out.getvalue())
+        self.assertIn("Arquivo de tools não encontrado", out.getvalue())
+
+    def test_chat_tools_file_without_tools_returns_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tools_path = f"{tmpdir}/tools_empty.py"
+            with open(tools_path, "w", encoding="utf-8") as fh:
+                fh.write("VALOR = 1\n")
+
+            out = io.StringIO()
+            with patch("agent.core.agent.Agent", DummyAgent), redirect_stdout(out):
+                code = cli.main(["chat", "--prompt", "oi", "--tools-file", tools_path])
+
+        self.assertEqual(code, 1)
+        self.assertIn("Erro ao carregar tools externas", out.getvalue())
+        self.assertIn("Nenhuma tool carregada", out.getvalue())
 
 
 if __name__ == "__main__":
