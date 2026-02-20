@@ -12,7 +12,6 @@ from typing import Callable, Dict, List, Optional
 
 from .core.config import AgentConfig
 from .integrations import normalize_provider
-from .integrations.config import resolve_api_key, resolve_model
 
 
 def _print_agent_response(response: str) -> None:
@@ -197,6 +196,7 @@ _PROVIDER_API_ENV: Dict[str, str] = {
     "grok": "XAI_API_KEY",
     "llama": "LLAMA_API_KEY",
 }
+_SUPPORTED_PROVIDERS = tuple(sorted(set(_PROVIDER_API_ENV.keys()) | {"ollama"}))
 
 
 def _mask_secret(value: str) -> str:
@@ -235,6 +235,34 @@ def _resolve_provider(provider: Optional[str]) -> str:
     return normalize_provider(raw)
 
 
+def _resolve_model_with_source(provider: str, explicit_model: Optional[str]) -> tuple[str, str]:
+    if explicit_model:
+        return explicit_model, "arg:model"
+
+    provider_key = provider.upper().replace("-", "_")
+    for env_name in (f"SMARTAGENT_{provider_key}_MODEL", "SMARTAGENT_MODEL", "LLM"):
+        value = os.getenv(env_name)
+        if value:
+            return value, f"env:{env_name}"
+    return "(default interno do provider)", "provider_default"
+
+
+def _resolve_api_key_with_source(provider: str, explicit_key: Optional[str], legacy_env: str) -> tuple[Optional[str], str]:
+    provider_key = provider.upper().replace("-", "_")
+    if explicit_key:
+        return explicit_key, "arg:api_key"
+    scoped = os.getenv(f"SMARTAGENT_{provider_key}_API_KEY")
+    if scoped:
+        return scoped, f"env:SMARTAGENT_{provider_key}_API_KEY"
+    global_key = os.getenv("SMARTAGENT_API_KEY")
+    if global_key:
+        return global_key, "env:SMARTAGENT_API_KEY"
+    legacy = os.getenv(legacy_env) if legacy_env else None
+    if legacy:
+        return legacy, f"env:{legacy_env}"
+    return None, "missing"
+
+
 def _show_doctor(
     provider: Optional[str],
     model: Optional[str],
@@ -244,7 +272,13 @@ def _show_doctor(
 ) -> int:
     print("=== smartagent doctor ===")
     try:
+        raw_provider = provider or os.getenv("SMARTAGENT_PROVIDER") or "groq"
         provider_name = _resolve_provider(provider)
+        if provider_name not in _SUPPORTED_PROVIDERS:
+            expected = ", ".join(_SUPPORTED_PROVIDERS)
+            print(f"ERRO de configuração: provider inválido '{raw_provider}'.")
+            print(f"Providers suportados: {expected}")
+            return 1
         cfg = AgentConfig.from_inputs(
             provider=provider_name,
             model=model,
@@ -257,24 +291,33 @@ def _show_doctor(
         return 1
 
     legacy_env = _PROVIDER_API_ENV.get(provider_name, "")
-    effective_api_key = resolve_api_key(provider_name, cfg.api_key, legacy_env) if legacy_env else cfg.api_key
-    effective_model = cfg.model or resolve_model(provider_name, default_model="(default interno do provider)")
+    effective_model, model_source = _resolve_model_with_source(provider_name, cfg.model)
+    if provider_name == "ollama":
+        effective_api_key, api_key_source = None, "n/a"
+    else:
+        effective_api_key, api_key_source = _resolve_api_key_with_source(provider_name, cfg.api_key, legacy_env)
 
+    print(f"provider_input: {raw_provider}")
     print(f"provider: {provider_name}")
+    print(f"model_input: {model or '(none)'}")
     print(f"model: {effective_model}")
+    print(f"model_source: {model_source}")
     print(f"timeout: {cfg.timeout}")
     print(f"retries: {cfg.retries}")
     if provider_name == "ollama":
         print("api_key: N/A (ollama local)")
+        print(f"api_key_source: {api_key_source}")
         print("status: OK")
         return 0
     if effective_api_key:
         print("api_key: OK")
+        print(f"api_key_source: {api_key_source}")
         print("status: OK")
         return 0
 
     hint = legacy_env or "SMARTAGENT_API_KEY"
     print(f"api_key: AUSENTE (defina {hint} ou SMARTAGENT_API_KEY)")
+    print(f"api_key_source: {api_key_source}")
     print("status: ATENCAO")
     return 2
 
