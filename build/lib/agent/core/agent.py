@@ -302,8 +302,8 @@ class Agent:
         )
         from ..cli import show_help
 
-        show_help()
-        #tools_list()
+        #show_help()
+        tools_list()
 
     
     def help_var(self):
